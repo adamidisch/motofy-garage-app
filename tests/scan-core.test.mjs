@@ -195,6 +195,8 @@ test("request schema uses valid JSON Schema nullable types", () => {
   assert.equal(body.store, false);
   assert.equal(body.generation_config.thinking_level, "low");
   assert.equal(body.generation_config.thinking_summaries, "none");
+  assert.equal(body.generation_config.thinking_level, "low");
+  assert.equal(body.generation_config.thinking_summaries, "none");
 });
 
 test("strips data URL prefixes and whitespace", () => {
