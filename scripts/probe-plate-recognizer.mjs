@@ -111,8 +111,7 @@ const top = [...results].sort((a, b) => Number(b?.score ?? 0) - Number(a?.score 
 const rawPlate = typeof top?.plate === "string" ? top.plate : null;
 const plate = normalisePlate(rawPlate);
 const score = typeof top?.score === "number" ? top.score : null;
-const processingSeconds = typeof payload.processing_time === "number" ? payload.processing_time : null;
-const apiMs = processingSeconds == null ? null : Math.round(processingSeconds * 1000);
+const processingTimeRaw = typeof payload.processing_time === "number" ? payload.processing_time : null;
 const expected = expectedRaw ? normalisePlate(expectedRaw) : null;
 const exactMatch = expected == null ? null : plate === expected;
 
@@ -124,7 +123,7 @@ console.log("size        " + Math.round(bytes.length / 1024) + " KB");
 console.log("region      " + region);
 console.log("HTTP        " + response.status);
 console.log("wall time   " + wallMs + " ms");
-console.log("API time    " + (apiMs == null ? "not reported" : apiMs + " ms"));
+console.log("API raw     " + (processingTimeRaw == null ? "not reported" : processingTimeRaw + " (provider-reported)"));
 console.log("plate raw   " + (rawPlate ?? "(none)"));
 console.log("plate       " + (plate ?? "(none)"));
 console.log("confidence  " + (score == null ? "not reported" : (score * 100).toFixed(1) + "%"));
