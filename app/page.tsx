@@ -260,7 +260,7 @@ export default function Home() {
   return <main className={"app-shell theme-" + theme}>
     <section className="phone-canvas">
       <header className="topbar" ref={headerRef}>
-        <button className="brand" aria-label="Motofy home" onClick={() => selectView("home")}><span className="brand-mark"><Wrench size={15}/></span><span>motofy</span></button>
+        <button className="brand" aria-label="Motofy home" onClick={() => selectView("home")}><span className="brand-mark"><img src="/icon.svg" alt="" width={28} height={28}/></span><span>motofy</span></button>
         <div className="top-actions"><button className="language" onClick={switchLanguage}>ΕΛ <span>/</span> EN</button><button className="icon-button" onClick={() => { setAddOpen(!addOpen); setMenuOpen(false); }} aria-label={t.add}><Plus size={20}/></button><button className="icon-button" onClick={() => { setMenuOpen(!menuOpen); setAddOpen(false); }} aria-label="Menu"><MoreHorizontal size={21}/></button></div>
         {addOpen && <div className="action-popover add-popover"><button onClick={() => { selectView("cars"); notice(t.newCar); }}><CarFront size={16}/>{t.newCar}</button><button onClick={() => { selectView("work"); notice(t.newJob); }}><Wrench size={16}/>{t.newJob}</button><button onClick={() => { selectView("customers"); notice(t.newCustomer); }}><UserRound size={16}/>{t.newCustomer}</button></div>}
         {menuOpen && <div className="action-popover menu-popover"><button onClick={() => selectView("settings")}><Settings2 size={16}/>{t.settings}</button><button onClick={() => notice(t.signout)}><X size={16}/>{t.signout}</button></div>}
