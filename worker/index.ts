@@ -25,6 +25,7 @@ function json(data: unknown, status = 200) {
 }
 
 async function scanVehicle(request: Request, env: Env) {
+  const startedAt = Date.now();
   const debug = env.SCAN_DEBUG === "1";
   const wantsRaw = debug && new URL(request.url).searchParams.get("raw") === "1";
 
@@ -43,17 +44,19 @@ async function scanVehicle(request: Request, env: Env) {
       log: (message, ...rest) => console.error("[scan]", message, ...rest),
     });
 
-    if (wantsRaw) return json({ result, rawText, upstream });
-    return json(debug ? { ...result, debug: { rawText } } : result);
+    const elapsedMs = Date.now() - startedAt;
+    console.log("[scan] completed", elapsedMs, "ms");
+    if (wantsRaw) return json({ result, rawText, upstream, debug: { elapsedMs } });
+    return json(debug ? { ...result, debug: { rawText, elapsedMs } } : result);
   } catch (error) {
     if (error instanceof ScanError) {
-      console.error("[scan]", error.userMessage, error.detail);
+      console.error("[scan]", error.userMessage, error.detail, `elapsed=${Date.now() - startedAt}ms`);
       return json(
         debug ? { error: error.userMessage, debug: { detail: error.detail } } : { error: error.userMessage },
         error.status,
       );
     }
-    console.error("[scan] unexpected failure", error);
+    console.error("[scan] unexpected failure", error, `elapsed=${Date.now() - startedAt}ms`);
     return json({ error: "Δεν ολοκληρώθηκε η αναγνώριση." }, 500);
   }
 }
