@@ -2,6 +2,14 @@
 
 Motofy is a mobile-first workspace for a car garage. The interface is Greek and should remain fast and readable on an iPhone-sized screen.
 
+## Source of truth and environments
+
+- **GitHub `main` is the canonical development source.**
+- Development live URL: https://motofy-garage-revamp.johnstaf.chatgpt.site/
+- A GitHub merge is **not automatically proof that the live site has that code**. After every functional merge, publish/redeploy the exact current `main` state and smoke-test the live URL before calling the change LIVE.
+- Full release checklist and current deployment state: [`DEPLOYMENT.md`](./DEPLOYMENT.md).
+- Do not use old Vercel deployments as a Motofy test target.
+
 ## Stack
 
 - React + TypeScript application in `app/`
