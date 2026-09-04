@@ -7,6 +7,9 @@ type View = "home" | "cars" | "work" | "customers" | "settings";
 type Car = { id: string; plate: string; name: string; year: string; km: string; customer: string; work: string; tone: string };
 type ScanResult = { plate: string | null; make: string | null; model: string | null; confidence: "high" | "medium" | "low"; source: "ai" };
 
+const APP_VERSION = "0.2.0";
+const APP_RELEASE = "Phase 1";
+
 const cars: Car[] = [
   { id: "yaris", plate: "ΚΒΥ 328", name: "Toyota Yaris", year: "2018", km: "86.420 km", customer: "Μάριος Παναγή", work: "Service σε 5 ημέρες", tone: "mint" },
   { id: "bmw", plate: "ΚΜΡ 714", name: "BMW 320i", year: "2020", km: "42.180 km", customer: "Ανδρέας Χρίστου", work: "Διάγνωση κινητήρα", tone: "blue" },
@@ -180,7 +183,7 @@ function Customers({ t, query, setQuery, notice }: { t: typeof el; query: string
 }
 
 function Settings({ t, theme, chooseTheme, lang, switchLanguage }: { t: typeof el; theme: string; chooseTheme: (theme: string) => void; lang: string; switchLanguage: () => void }) {
-  return <><Intro eyebrow={t.preferences} title={t.settings}/><section className="settings-group"><p className="eyebrow">{t.appearance}</p><div className="setting-row"><span><span className="setting-icon"><Sparkles size={17}/></span>{t.theme}</span><div className="theme-select">{["sky", "pearl", "midnight"].map((item) => <button key={item} className={theme === item ? "selected" : ""} onClick={() => chooseTheme(item)}>{item}</button>)}</div></div><button className="setting-row" onClick={switchLanguage}><span><span className="setting-icon"><UserRound size={17}/></span>{t.language}</span><strong>{lang.toUpperCase()}<ChevronRight size={17}/></strong></button></section></>;
+  return <><Intro eyebrow={t.preferences} title={t.settings}/><section className="settings-group"><p className="eyebrow">{t.appearance}</p><div className="setting-row"><span><span className="setting-icon"><Sparkles size={17}/></span>{t.theme}</span><div className="theme-select">{["sky", "pearl", "midnight"].map((item) => <button key={item} className={theme === item ? "selected" : ""} onClick={() => chooseTheme(item)}>{item}</button>)}</div></div><button className="setting-row" onClick={switchLanguage}><span><span className="setting-icon"><UserRound size={17}/></span>{t.language}</span><strong>{lang.toUpperCase()}<ChevronRight size={17}/></strong></button><p className="app-version">Motofy v{APP_VERSION} · {APP_RELEASE}</p></section></>;
 }
 
 function Scanner({ stage, t, error, scanError, result, selectedImage, videoRef, fileInputRef, close, recognise, choosePhoto, openRecord, restart }: { stage: "camera" | "processing" | "match"; t: typeof el; error: boolean; scanError: string; result: ScanResult | null; selectedImage: string | null; videoRef: React.RefObject<HTMLVideoElement | null>; fileInputRef: React.RefObject<HTMLInputElement | null>; close: () => void; recognise: () => void; choosePhoto: (file: File | undefined) => void; openRecord: () => void; restart: () => void }) {
