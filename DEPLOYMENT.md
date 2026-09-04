@@ -6,7 +6,7 @@ This file is the operational source of truth for where Motofy code lives, what i
 
 | Item | Canonical source |
 | --- | --- |
-| Source code | GitHub `adamidisch/motofy-garage-app` |\n| Current app version | `v0.2.0` · Phase 1 |
+| Source code | GitHub `adamidisch/motofy-garage-app` |\n| Current app version | `v0.2.1` · Phase 1 |
 | Stable development code | `main` branch |
 | Development live site | https://motofy-garage-revamp.johnstaf.chatgpt.site/ |
 | Development hosting | OpenAI Sites — temporary |
@@ -58,6 +58,7 @@ Validated behavior:
 - backend timeout: 30s
 - frontend timeout: 35s
 - diagnostic probe timeout: 60s
+- Gemini thinking level: low (latency patch)
 - offline unit tests: 43/43 PASS
 
 Phase 1 code merge:

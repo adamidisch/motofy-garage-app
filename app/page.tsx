@@ -7,7 +7,7 @@ type View = "home" | "cars" | "work" | "customers" | "settings";
 type Car = { id: string; plate: string; name: string; year: string; km: string; customer: string; work: string; tone: string };
 type ScanResult = { plate: string | null; make: string | null; model: string | null; confidence: "high" | "medium" | "low"; source: "ai" };
 
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.2.1";
 const APP_RELEASE = "Phase 1";
 
 const cars: Car[] = [
