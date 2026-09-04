@@ -423,3 +423,33 @@ test("log output is scrubbed too, not just the thrown error", async () => {
   );
   assert.equal(logged.join("\n").includes(apiKey), false);
 });
+
+
+test("default timeout is 30s, above the 12.8s a real scan was measured at", async () => {
+  let seenSignal;
+  const started = Date.now();
+  await runVehicleScan({
+    apiKey: "k-abcdefghijklmnop",
+    imageData: "AAAA",
+    fetchImpl: async (url, init) => {
+      seenSignal = init.signal;
+      return new Response(JSON.stringify(CURRENT_SCHEMA_RESPONSE), { status: 200 });
+    },
+  });
+  assert.equal(seenSignal.aborted, false);
+  assert.ok(Date.now() - started < 1000);
+
+  await assert.rejects(
+    () =>
+      runVehicleScan({
+        apiKey: "k-abcdefghijklmnop",
+        imageData: "AAAA",
+        timeoutMs: 5,
+        fetchImpl: (url, init) =>
+          new Promise((resolve, reject) => {
+            init.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+          }),
+      }),
+    (error) => error instanceof ScanError && error.status === 504,
+  );
+});
