@@ -1,12 +1,13 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { runVehicleScan, ScanError } from "../lib/scan-core.mjs";
+import { runPlateRecognizerScan, runVehicleScan, ScanError } from "../lib/scan-core.mjs";
 
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   GEMINI_API_KEY?: string;
+  PLATE_RECOGNIZER_TOKEN?: string;
   /** Set to "1" to expose upstream diagnostics on /api/scan. Never enable in production. */
   SCAN_DEBUG?: string;
   IMAGES: {
@@ -22,6 +23,36 @@ type ScanPayload = { imageData?: string; mimeType?: string };
 
 function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
+}
+
+async function scanPlate(request: Request, env: Env) {
+  const startedAt = Date.now();
+  let payload: ScanPayload;
+  try {
+    payload = (await request.json()) as ScanPayload;
+  } catch {
+    return json({ error: "Η φωτογραφία δεν διαβάστηκε." }, 400);
+  }
+
+  try {
+    const { result } = await runPlateRecognizerScan({
+      apiToken: env.PLATE_RECOGNIZER_TOKEN,
+      imageData: payload.imageData,
+      mimeType: payload.mimeType,
+      region: "cy",
+      log: (message, ...rest) => console.error("[plate]", message, ...rest),
+    });
+    const elapsedMs = Date.now() - startedAt;
+    console.log("[plate] completed", elapsedMs, "ms");
+    return json({ ...result, provider: "plate-recognizer", elapsedMs });
+  } catch (error) {
+    if (error instanceof ScanError) {
+      console.error("[plate]", error.userMessage, error.detail, `elapsed=${Date.now() - startedAt}ms`);
+      return json({ error: error.userMessage }, error.status);
+    }
+    console.error("[plate] unexpected failure", error, `elapsed=${Date.now() - startedAt}ms`);
+    return json({ error: "Δεν ολοκληρώθηκε η ανάγνωση πινακίδας." }, 500);
+  }
 }
 
 async function scanVehicle(request: Request, env: Env) {
@@ -76,7 +107,12 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === "/api/scan") {
+    if (url.pathname === "/api/scan/plate") {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      return scanPlate(request, env);
+    }
+
+    if (url.pathname === "/api/scan/vehicle" || url.pathname === "/api/scan") {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
       return scanVehicle(request, env);
     }
