@@ -6,7 +6,7 @@ This file is the operational source of truth for where Motofy code lives, what i
 
 | Item | Canonical source |
 | --- | --- |
-| Source code | GitHub `adamidisch/motofy-garage-app` |\n| Current app version | `v0.2.1` · Phase 1 |
+| Source code | GitHub `adamidisch/motofy-garage-app` |\n| Current app version | `v0.2.2` · Phase 1 |
 | Stable development code | `main` branch |
 | Development live site | https://motofy-garage-revamp.johnstaf.chatgpt.site/ |
 | Development hosting | OpenAI Sites — temporary |
@@ -103,3 +103,16 @@ Phase 2 is Supabase foundation:
 10. replace hardcoded demo data incrementally
 
 Do not start D1 persistence and do not migrate to Vercel.
+
+
+## v0.2.2 live scan experiment
+
+Development-only dual-engine scan flow:
+
+1. Plate Recognizer Snapshot Cloud reads the Cyprus plate first via `/api/scan/plate`.
+2. Gemini runs in parallel via `/api/scan/vehicle` for vehicle make/model and remains a plate fallback.
+3. The UI exposes stage-based progress and actual engine completion instead of the obsolete Base/Contrast/Sharp/Vote labels.
+4. If Gemini fails but Plate Recognizer returned a plate, the scan still succeeds with the plate-only result.
+5. `PLATE_RECOGNIZER_TOKEN` and `GEMINI_API_KEY` are server-side secrets only.
+
+This is a development benchmark architecture. Provider selection is not final production architecture.

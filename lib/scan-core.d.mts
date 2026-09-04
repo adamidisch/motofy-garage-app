@@ -8,6 +8,21 @@ export interface ScanResult {
   source: "ai";
 }
 
+export interface RunPlateRecognizerScanOptions {
+  apiToken: string | undefined;
+  imageData: unknown;
+  mimeType?: string;
+  region?: string;
+  timeoutMs?: number;
+  fetchImpl?: typeof fetch;
+  log?: (message: string, ...rest: unknown[]) => void;
+}
+
+export interface RunPlateRecognizerScanOutcome {
+  result: ScanResult;
+  upstream: unknown;
+}
+
 export interface RunVehicleScanOptions {
   apiKey: string | undefined;
   imageData: unknown;
@@ -26,6 +41,7 @@ export interface RunVehicleScanOutcome {
 
 export declare const GEMINI_INTERACTIONS_URL: string;
 export declare const DEFAULT_MODEL: string;
+export declare const PLATE_RECOGNIZER_URL: string;
 export declare const SCAN_PROMPT: string;
 export declare const SCAN_SCHEMA: Record<string, unknown>;
 export declare const MAX_IMAGE_BASE64_LENGTH: number;
@@ -49,4 +65,5 @@ export declare function buildScanRequestBody(options: {
   mimeType: string;
   model?: string;
 }): Record<string, unknown>;
+export declare function runPlateRecognizerScan(options: RunPlateRecognizerScanOptions): Promise<RunPlateRecognizerScanOutcome>;
 export declare function runVehicleScan(options: RunVehicleScanOptions): Promise<RunVehicleScanOutcome>;

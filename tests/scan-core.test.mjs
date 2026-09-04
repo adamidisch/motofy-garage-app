@@ -9,6 +9,7 @@ import {
   normalisePlate,
   parseLooseJson,
   redactSecrets,
+  runPlateRecognizerScan,
   runVehicleScan,
   stripDataUrl,
   toScanResult,
@@ -200,6 +201,74 @@ test("request schema uses valid JSON Schema nullable types", () => {
 test("strips data URL prefixes and whitespace", () => {
   assert.equal(stripDataUrl("data:image/jpeg;base64,AAAA"), "AAAA");
   assert.equal(stripDataUrl("AA\nAA"), "AAAA");
+});
+
+/* ------------------------------------------------------------------ */
+/* runPlateRecognizerScan                                              */
+/* ------------------------------------------------------------------ */
+
+test("Plate Recognizer returns a normalised Cyprus plate", async () => {
+  const { result } = await runPlateRecognizerScan({
+    apiToken: "plate-secret-token",
+    imageData: "data:image/png;base64,QUJDRA==",
+    mimeType: "image/png",
+    fetchImpl: async () => new Response(JSON.stringify({ results: [{ plate: "pyz824", score: 0.995 }] }), { status: 201 }),
+  });
+  assert.deepEqual(result, {
+    plate: "PYZ 824",
+    make: null,
+    model: null,
+    confidence: "high",
+    source: "ai",
+  });
+});
+
+test("Plate Recognizer sends token in header and Cyprus region in multipart body", async () => {
+  let seenUrl;
+  let seenHeaders;
+  let seenRegion;
+  await runPlateRecognizerScan({
+    apiToken: "plate-secret-token",
+    imageData: "QUJDRA==",
+    fetchImpl: async (url, init) => {
+      seenUrl = url;
+      seenHeaders = init.headers;
+      seenRegion = init.body.get("regions");
+      return new Response(JSON.stringify({ results: [] }), { status: 201 });
+    },
+  });
+  assert.equal(seenHeaders.Authorization, "Token plate-secret-token");
+  assert.equal(seenUrl.includes("plate-secret-token"), false);
+  assert.equal(seenRegion, "cy");
+});
+
+test("Plate Recognizer missing token fails closed", async () => {
+  await assert.rejects(
+    () => runPlateRecognizerScan({ apiToken: undefined, imageData: "QUJDRA==" }),
+    (error) => error instanceof ScanError && error.status === 503,
+  );
+});
+
+test("Plate Recognizer empty result stays safe and low confidence", async () => {
+  const { result } = await runPlateRecognizerScan({
+    apiToken: "plate-secret-token",
+    imageData: "QUJDRA==",
+    fetchImpl: async () => new Response(JSON.stringify({ results: [] }), { status: 201 }),
+  });
+  assert.equal(result.plate, null);
+  assert.equal(result.confidence, "low");
+});
+
+test("Plate Recognizer upstream errors redact the token", async () => {
+  const token = "plate-secret-token-123456";
+  await assert.rejects(
+    () => runPlateRecognizerScan({
+      apiToken: token,
+      imageData: "QUJDRA==",
+      fetchImpl: async () => new Response(JSON.stringify({ error: `bad token ${token}` }), { status: 401 }),
+    }),
+    (error) => error instanceof ScanError && !error.detail.includes(token) && error.detail.includes("[REDACTED]"),
+  );
 });
 
 /* ------------------------------------------------------------------ */
