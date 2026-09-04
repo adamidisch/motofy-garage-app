@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Motofy">
+  <title>Motofy</title>
+  <g fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M79 191 L79 140 L130 140"/>
+    <path d="M382 140 L433 140 L433 191"/>
+    <path d="M79 321 L79 372 L130 372"/>
+    <path d="M382 372 L433 372 L433 321"/>
+    <rect x="135" y="186" width="242" height="140" rx="19"/>
+  </g>
+  <g fill="currentColor">
+    <rect x="170" y="261" width="23" height="33" rx="9"/>
+    <rect x="207" y="238" width="23" height="56" rx="9"/>
+    <rect x="244" y="219" width="23" height="75" rx="9"/>
+    <rect x="282" y="219" width="23" height="75" rx="9"/>
+    <rect x="319" y="247" width="23" height="47" rx="9"/>
+  </g>
+</svg>
