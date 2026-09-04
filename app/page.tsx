@@ -5,9 +5,18 @@ import { ArrowLeft, Bell, CalendarDays, Camera, CarFront, Check, ChevronRight, C
 
 type View = "home" | "cars" | "work" | "customers" | "settings";
 type Car = { id: string; plate: string; name: string; year: string; km: string; customer: string; work: string; tone: string };
-type ScanResult = { plate: string | null; make: string | null; model: string | null; confidence: "high" | "medium" | "low"; source: "ai" };
+type ScanResult = { plate: string | null; make: string | null; model: string | null; confidence: "high" | "medium" | "low"; source: "ai"; provider?: string; elapsedMs?: number };
+type ScanProgress = {
+  percent: number;
+  phase: "prepare" | "plate" | "vehicle" | "verify";
+  plate: string | null;
+  plateMs: number | null;
+  plateStatus: "idle" | "working" | "done" | "fallback";
+  vehicleMs: number | null;
+  vehicleStatus: "idle" | "working" | "done" | "fallback";
+};
 
-const APP_VERSION = "0.2.1";
+const APP_VERSION = "0.2.2";
 const APP_RELEASE = "Phase 1";
 
 const cars: Car[] = [
@@ -30,8 +39,8 @@ const customers = [
   { initials: "ΜΣ", name: "Μιχάλης Σάββα", phone: "97 016 404", car: "Ford Fiesta · ΚΜΝ 246", count: 1, tone: "lilac" },
 ];
 
-const el = { today: "ΣΗΜΕΡΑ · 2 ΣΕΠ", hello: "Καλησπέρα, Ανδρέα", subtitle: "Τι δουλειά έχουμε σήμερα;", scan: "Σάρωση αυτοκινήτου", scanTitle: "Σκάναρε το αυτοκίνητο", scanText: "Πινακίδα, πελάτης και ιστορικό — αμέσως μπροστά σου.", home: "Αρχική", cars: "Αυτοκίνητα", work: "Εργασίες", customers: "Πελάτες", add: "Προσθήκη", appointment: "Ραντεβού", notes: "Σημειώσεις", jobs: "Εργασίες", activity: "Πρόσφατη κίνηση", garage: "Συνεργείο", all: "Όλα", open: "Άνοιγμα", newCar: "Νέο αυτοκίνητο", newJob: "Νέα εργασία", newCustomer: "Νέος πελάτης", settings: "Ρυθμίσεις", signout: "Έξοδος", camera: "Κάμερα πινακίδας", cameraText: "Βάλε την πινακίδα μέσα στο πλαίσιο και πάτα Αναγνώριση.", recognize: "Αναγνώριση", demo: "Χρήση demo εικόνας", cancel: "Ακύρωση", processing: "Διαβάζουμε την πινακίδα…", found: "Βρέθηκε όχημα", openRecord: "Άνοιγμα καρτέλας", retake: "Νέα λήψη", searchCar: "Αναζήτηση πινακίδας ή αυτοκινήτου", searchCustomer: "Αναζήτηση πελάτη", allCars: "Όλα τα αυτοκίνητα", activeJobs: "Εργασίες σήμερα", customerList: "Οι πελάτες σου", noResults: "Δεν βρέθηκε αποτέλεσμα", vehicle: "Καρτέλα οχήματος", owner: "Πελάτης", mileage: "Χιλιόμετρα", currentWork: "Τρέχουσα εργασία", note: "Σημείωση", appearance: "Εμφάνιση", theme: "Theme", language: "Γλώσσα", preferences: "Ρυθμίσεις συνεργείου", saved: "Αποθηκεύτηκε", progress: "Σε εξέλιξη", history: "Ιστορικό", vehicles: "οχήματα" };
-const en = { today: "TODAY · SEP 2", hello: "Good evening, Andreas", subtitle: "What needs moving today?", scan: "Scan vehicle", scanTitle: "Scan the car", scanText: "Plate, customer and history — ready when you are.", home: "Home", cars: "Cars", work: "Jobs", customers: "Customers", add: "Add", appointment: "Appointments", notes: "Notes", jobs: "Jobs", activity: "Recent activity", garage: "Garage", all: "All", open: "Open", newCar: "New car", newJob: "New job", newCustomer: "New customer", settings: "Settings", signout: "Sign out", camera: "Plate camera", cameraText: "Place the plate in frame then tap Recognise.", recognize: "Recognise", demo: "Use demo image", cancel: "Cancel", processing: "Reading the plate…", found: "Vehicle found", openRecord: "Open record", retake: "Retake", searchCar: "Search plate or vehicle", searchCustomer: "Search customer", allCars: "All vehicles", activeJobs: "Today’s jobs", customerList: "Your customers", noResults: "No results found", vehicle: "Vehicle record", owner: "Customer", mileage: "Mileage", currentWork: "Current job", note: "Note", appearance: "Appearance", theme: "Theme", language: "Language", preferences: "Garage settings", saved: "Saved", progress: "In progress", history: "History", vehicles: "vehicles" };
+const el = { scanPrepare: "Προετοιμασία φωτογραφίας", scanPlate: "Ανάγνωση πινακίδας", scanVehicle: "Αναγνώριση οχήματος", scanVerify: "Επιβεβαίωση αποτελέσματος", scanPlateFallback: "Ο γρήγορος έλεγχος δεν ολοκληρώθηκε · συνεχίζει το AI", scanWaiting: "Το AI χρειάζεται λίγο περισσότερο χρόνο…", today: "ΣΗΜΕΡΑ · 2 ΣΕΠ", hello: "Καλησπέρα, Ανδρέα", subtitle: "Τι δουλειά έχουμε σήμερα;", scan: "Σάρωση αυτοκινήτου", scanTitle: "Σκάναρε το αυτοκίνητο", scanText: "Πινακίδα, πελάτης και ιστορικό — αμέσως μπροστά σου.", home: "Αρχική", cars: "Αυτοκίνητα", work: "Εργασίες", customers: "Πελάτες", add: "Προσθήκη", appointment: "Ραντεβού", notes: "Σημειώσεις", jobs: "Εργασίες", activity: "Πρόσφατη κίνηση", garage: "Συνεργείο", all: "Όλα", open: "Άνοιγμα", newCar: "Νέο αυτοκίνητο", newJob: "Νέα εργασία", newCustomer: "Νέος πελάτης", settings: "Ρυθμίσεις", signout: "Έξοδος", camera: "Κάμερα πινακίδας", cameraText: "Βάλε την πινακίδα μέσα στο πλαίσιο και πάτα Αναγνώριση.", recognize: "Αναγνώριση", demo: "Χρήση demo εικόνας", cancel: "Ακύρωση", processing: "Διαβάζουμε την πινακίδα…", found: "Βρέθηκε όχημα", openRecord: "Άνοιγμα καρτέλας", retake: "Νέα λήψη", searchCar: "Αναζήτηση πινακίδας ή αυτοκινήτου", searchCustomer: "Αναζήτηση πελάτη", allCars: "Όλα τα αυτοκίνητα", activeJobs: "Εργασίες σήμερα", customerList: "Οι πελάτες σου", noResults: "Δεν βρέθηκε αποτέλεσμα", vehicle: "Καρτέλα οχήματος", owner: "Πελάτης", mileage: "Χιλιόμετρα", currentWork: "Τρέχουσα εργασία", note: "Σημείωση", appearance: "Εμφάνιση", theme: "Theme", language: "Γλώσσα", preferences: "Ρυθμίσεις συνεργείου", saved: "Αποθηκεύτηκε", progress: "Σε εξέλιξη", history: "Ιστορικό", vehicles: "οχήματα" };
+const en = { scanPrepare: "Preparing photo", scanPlate: "Reading plate", scanVehicle: "Identifying vehicle", scanVerify: "Verifying result", scanPlateFallback: "Fast plate check did not complete · AI is continuing", scanWaiting: "The AI needs a little more time…", today: "TODAY · SEP 2", hello: "Good evening, Andreas", subtitle: "What needs moving today?", scan: "Scan vehicle", scanTitle: "Scan the car", scanText: "Plate, customer and history — ready when you are.", home: "Home", cars: "Cars", work: "Jobs", customers: "Customers", add: "Add", appointment: "Appointments", notes: "Notes", jobs: "Jobs", activity: "Recent activity", garage: "Garage", all: "All", open: "Open", newCar: "New car", newJob: "New job", newCustomer: "New customer", settings: "Settings", signout: "Sign out", camera: "Plate camera", cameraText: "Place the plate in frame then tap Recognise.", recognize: "Recognise", demo: "Use demo image", cancel: "Cancel", processing: "Reading the plate…", found: "Vehicle found", openRecord: "Open record", retake: "Retake", searchCar: "Search plate or vehicle", searchCustomer: "Search customer", allCars: "All vehicles", activeJobs: "Today’s jobs", customerList: "Your customers", noResults: "No results found", vehicle: "Vehicle record", owner: "Customer", mileage: "Mileage", currentWork: "Current job", note: "Note", appearance: "Appearance", theme: "Theme", language: "Language", preferences: "Garage settings", saved: "Saved", progress: "In progress", history: "History", vehicles: "vehicles" };
 
 export default function Home() {
   const [lang, setLang] = useState<"el" | "en">("el");
@@ -42,6 +51,10 @@ export default function Home() {
   const [cameraError, setCameraError] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [scanError, setScanError] = useState("");
+  const [scanProgress, setScanProgress] = useState<ScanProgress>({
+    percent: 0, phase: "prepare", plate: null, plateMs: null,
+    plateStatus: "idle", vehicleMs: null, vehicleStatus: "idle",
+  });
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
@@ -88,7 +101,12 @@ export default function Home() {
 
   function switchLanguage() { const next = lang === "el" ? "en" : "el"; setLang(next); localStorage.setItem("motofy-language", next); }
   function chooseTheme(next: string) { setTheme(next); localStorage.setItem("motofy-theme", next); notice(t.saved); }
-  function startScanner() { setMenuOpen(false); setAddOpen(false); setCameraError(false); setScanError(""); setScanResult(null); setSelectedImage(null); setScanner("camera"); window.requestAnimationFrame(startCamera); }
+  function startScanner() {
+    setMenuOpen(false); setAddOpen(false); setCameraError(false); setScanError("");
+    setScanResult(null); setSelectedImage(null);
+    setScanProgress({ percent: 0, phase: "prepare", plate: null, plateMs: null, plateStatus: "idle", vehicleMs: null, vehicleStatus: "idle" });
+    setScanner("camera"); window.requestAnimationFrame(startCamera);
+  }
   async function startCamera() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
@@ -107,16 +125,125 @@ export default function Home() {
   async function recognise() {
     const image = selectedImage ?? captureFrame();
     if (!image) { setCameraError(true); setScanError("Χρειάζεται φωτογραφία για να γίνει η αναγνώριση."); return; }
-    stopCamera(); setScanError(""); setScanner("processing");
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 35_000);
-    try {
-      const response = await fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ imageData: image, mimeType: image.startsWith("data:image/png") ? "image/png" : "image/jpeg" }) });
+
+    stopCamera();
+    setScanError("");
+    setScanResult(null);
+    setScanProgress({ percent: 12, phase: "prepare", plate: null, plateMs: null, plateStatus: "idle", vehicleMs: null, vehicleStatus: "idle" });
+    setScanner("processing");
+
+    const requestBody = JSON.stringify({
+      imageData: image,
+      mimeType: image.startsWith("data:image/png") ? "image/png" : image.startsWith("data:image/webp") ? "image/webp" : "image/jpeg",
+    });
+
+    const plateController = new AbortController();
+    const vehicleController = new AbortController();
+    const plateTimeout = window.setTimeout(() => plateController.abort(), 7_000);
+    const vehicleTimeout = window.setTimeout(() => vehicleController.abort(), 35_000);
+
+    setScanProgress((current) => ({ ...current, percent: 34, phase: "plate", plateStatus: "working", vehicleStatus: "working" }));
+
+    const platePromise = fetch("/api/scan/plate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: plateController.signal,
+      body: requestBody,
+    }).then(async (response) => {
       const payload = await response.json() as ScanResult & { error?: string };
-      if (!response.ok) throw new Error(payload.error || "Δεν ολοκληρώθηκε η αναγνώριση.");
-      setScanResult(payload); setScanner("match");
-    } catch (error) { setScanError(error instanceof DOMException && error.name === "AbortError" ? "Η αναγνώριση άργησε πολύ. Δοκίμασε ξανά ή βγάλε πιο καθαρή φωτογραφία." : error instanceof Error ? error.message : "Δεν ολοκληρώθηκε η αναγνώριση."); setScanner("camera"); }
-    finally { window.clearTimeout(timeout); }
+      if (!response.ok) throw new Error(payload.error || "Δεν ολοκληρώθηκε η γρήγορη ανάγνωση.");
+      return payload;
+    });
+
+    const vehiclePromise = fetch("/api/scan/vehicle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: vehicleController.signal,
+      body: requestBody,
+    }).then(async (response) => {
+      const payload = await response.json() as ScanResult & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Δεν ολοκληρώθηκε η αναγνώριση οχήματος.");
+      return payload;
+    });
+
+    let plateResult: ScanResult | null = null;
+    let vehicleResult: ScanResult | null = null;
+    let plateFailure: unknown = null;
+    let vehicleFailure: unknown = null;
+
+    try {
+      plateResult = await platePromise;
+      setScanProgress((current) => ({
+        ...current,
+        percent: 58,
+        phase: "vehicle",
+        plate: plateResult?.plate ?? null,
+        plateMs: plateResult?.elapsedMs ?? null,
+        plateStatus: plateResult?.plate ? "done" : "fallback",
+      }));
+    } catch (error) {
+      plateFailure = error;
+      setScanProgress((current) => ({
+        ...current,
+        percent: 58,
+        phase: "vehicle",
+        plateStatus: "fallback",
+      }));
+    } finally {
+      window.clearTimeout(plateTimeout);
+    }
+
+    try {
+      vehicleResult = await vehiclePromise;
+      setScanProgress((current) => ({
+        ...current,
+        percent: 92,
+        phase: "verify",
+        vehicleMs: vehicleResult?.elapsedMs ?? null,
+        vehicleStatus: "done",
+      }));
+    } catch (error) {
+      vehicleFailure = error;
+      setScanProgress((current) => ({
+        ...current,
+        percent: 92,
+        phase: "verify",
+        vehicleStatus: "fallback",
+      }));
+    } finally {
+      window.clearTimeout(vehicleTimeout);
+    }
+
+    const finalPlate = plateResult?.plate ?? vehicleResult?.plate ?? null;
+    const finalResult: ScanResult | null =
+      finalPlate || vehicleResult?.make || vehicleResult?.model
+        ? {
+            plate: finalPlate,
+            make: vehicleResult?.make ?? null,
+            model: vehicleResult?.model ?? null,
+            confidence: plateResult?.plate ? plateResult.confidence : vehicleResult?.confidence ?? "low",
+            source: "ai",
+          }
+        : null;
+
+    if (finalResult) {
+      setScanProgress((current) => ({ ...current, percent: 100, phase: "verify" }));
+      setScanResult(finalResult);
+      setScanner("match");
+      return;
+    }
+
+    const timedOut = [plateFailure, vehicleFailure].some((error) => error instanceof DOMException && error.name === "AbortError");
+    const message =
+      timedOut
+        ? "Η αναγνώριση άργησε πολύ. Δοκίμασε ξανά ή βγάλε πιο καθαρή φωτογραφία."
+        : vehicleFailure instanceof Error
+          ? vehicleFailure.message
+          : plateFailure instanceof Error
+            ? plateFailure.message
+            : "Δεν ολοκληρώθηκε η αναγνώριση.";
+    setScanError(message);
+    setScanner("camera");
   }
   function choosePhoto(file: File | undefined) {
     if (!file) return;
@@ -147,7 +274,7 @@ export default function Home() {
       </div>
       <nav className="bottom-nav" aria-label="Main navigation">{nav.map(([id, Icon, label]) => <button key={id} className={view === id ? "selected" : ""} onClick={() => selectView(id)}><Icon size={20}/><span>{label}</span></button>)}<button className="nav-add" onClick={() => { setAddOpen(!addOpen); setMenuOpen(false); }}><span><Plus size={22}/></span><small>{t.add}</small></button></nav>
     </section>
-    {scanner && <Scanner stage={scanner} t={t} error={cameraError} scanError={scanError} result={scanResult} selectedImage={selectedImage} videoRef={videoRef} fileInputRef={fileInputRef} close={closeScanner} recognise={recognise} choosePhoto={choosePhoto} openRecord={openFoundCar} restart={startScanner}/>}
+    {scanner && <Scanner stage={scanner} t={t} error={cameraError} scanError={scanError} result={scanResult} progress={scanProgress} selectedImage={selectedImage} videoRef={videoRef} fileInputRef={fileInputRef} close={closeScanner} recognise={recognise} choosePhoto={choosePhoto} openRecord={openFoundCar} restart={startScanner}/>}
     {selectedCar && <Record car={selectedCar} t={t} close={() => setSelectedCar(null)}/>}
     {toast && <div className="toast"><Check size={16}/>{toast}</div>}
   </main>;
@@ -186,12 +313,49 @@ function Settings({ t, theme, chooseTheme, lang, switchLanguage }: { t: typeof e
   return <><Intro eyebrow={t.preferences} title={t.settings}/><section className="settings-group"><p className="eyebrow">{t.appearance}</p><div className="setting-row"><span><span className="setting-icon"><Sparkles size={17}/></span>{t.theme}</span><div className="theme-select">{["sky", "pearl", "midnight"].map((item) => <button key={item} className={theme === item ? "selected" : ""} onClick={() => chooseTheme(item)}>{item}</button>)}</div></div><button className="setting-row" onClick={switchLanguage}><span><span className="setting-icon"><UserRound size={17}/></span>{t.language}</span><strong>{lang.toUpperCase()}<ChevronRight size={17}/></strong></button><p className="app-version">Motofy v{APP_VERSION} · {APP_RELEASE}</p></section></>;
 }
 
-function Scanner({ stage, t, error, scanError, result, selectedImage, videoRef, fileInputRef, close, recognise, choosePhoto, openRecord, restart }: { stage: "camera" | "processing" | "match"; t: typeof el; error: boolean; scanError: string; result: ScanResult | null; selectedImage: string | null; videoRef: React.RefObject<HTMLVideoElement | null>; fileInputRef: React.RefObject<HTMLInputElement | null>; close: () => void; recognise: () => void; choosePhoto: (file: File | undefined) => void; openRecord: () => void; restart: () => void }) {
+function Scanner({ stage, t, error, scanError, result, progress, selectedImage, videoRef, fileInputRef, close, recognise, choosePhoto, openRecord, restart }: { stage: "camera" | "processing" | "match"; t: typeof el; error: boolean; scanError: string; result: ScanResult | null; progress: ScanProgress; selectedImage: string | null; videoRef: React.RefObject<HTMLVideoElement | null>; fileInputRef: React.RefObject<HTMLInputElement | null>; close: () => void; recognise: () => void; choosePhoto: (file: File | undefined) => void; openRecord: () => void; restart: () => void }) {
   return <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="scanner-modal"><header><button aria-label={t.cancel} onClick={close}><X size={20}/></button><div><p className="eyebrow">{stage === "match" ? "SCAN COMPLETE" : "LIVE SCAN"}</p><h2>{stage === "match" ? t.found : t.camera}</h2></div><span/></header>
     {stage === "camera" && <><div className={"camera-stage " + (error ? "camera-error" : "")}>{selectedImage ? <img src={selectedImage} alt="Επιλεγμένη φωτογραφία αυτοκινήτου"/> : !error && <video ref={videoRef} playsInline muted/>}<div className="plate-guide"><i/><i/><i/><i/></div>{error && !selectedImage && <div className="camera-fallback"><Camera size={31}/><strong>{t.cameraText}</strong></div>}</div><p className="scanner-help">{scanError || t.cameraText}</p><input ref={fileInputRef} className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={(event) => choosePhoto(event.target.files?.[0])}/><footer><button className="secondary-button" onClick={() => fileInputRef.current?.click()}>{selectedImage ? t.retake : "Φωτογραφία"}</button><button className="primary-button" onClick={recognise}>{t.recognize}<ScanLine size={18}/></button></footer></>}
-    {stage === "processing" && <div className="processing-state"><span className="scan-processing"><ScanLine size={34}/></span><h3>{t.processing}</h3><p>Base · Contrast · Sharp · Gray · Inverse · Vote</p><div className="ocr-passes"><span><Check size={12}/> Base</span><span><Check size={12}/> Contrast</span><span><Check size={12}/> Sharp</span><span>Vote</span></div></div>}
+    {stage === "processing" && <ProcessingState t={t} progress={progress}/>} 
     {stage === "match" && <div className="match-state"><span className="match-check"><Check size={28}/></span><p className="eyebrow">AI RESULT · {result?.confidence === "high" ? "ΥΨΗΛΗ ΒΕΒΑΙΟΤΗΤΑ" : result?.confidence === "medium" ? "ΜΕΤΡΙΑ ΒΕΒΑΙΟΤΗΤΑ" : "ΧΑΜΗΛΗ ΒΕΒΑΙΟΤΗΤΑ"}</p><h3>{result?.plate || "Δεν διαβάστηκε πινακίδα"}</h3><strong>{[result?.make, result?.model].filter(Boolean).join(" ") || "Δεν αναγνωρίστηκε με ασφάλεια"}<small>Από φωτογραφία · επιβεβαίωσε πριν τη χρήση</small></strong><p>{result?.plate || result?.make ? "Νέα καρτέλα · Επιβεβαίωση στοιχείων" : "Δοκίμασε πιο καθαρή λήψη της πινακίδας και του αυτοκινήτου."}</p><footer><button className="secondary-button" onClick={restart}>{t.retake}</button>{(result?.plate || result?.make) && <button className="primary-button" onClick={openRecord}>{t.openRecord}<ChevronRight size={18}/></button>}</footer></div>}
   </section></div>;
+}
+
+function ProcessingState({ t, progress }: { t: typeof el; progress: ScanProgress }) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const timer = window.setInterval(() => setElapsed(Date.now() - started), 100);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const phaseLabel =
+    progress.phase === "prepare" ? t.scanPrepare :
+    progress.phase === "plate" ? t.scanPlate :
+    progress.phase === "vehicle" ? t.scanVehicle :
+    t.scanVerify;
+
+  return <div className="processing-state">
+    <span className="scan-processing"><ScanLine size={34}/></span>
+    <h3>{t.processing}</h3>
+    <p className="processing-phase">{phaseLabel}</p>
+
+    <div className="scan-progress-shell" aria-label={phaseLabel}>
+      <div className="scan-progress-top"><strong>{progress.percent}%</strong><span>{(elapsed / 1000).toFixed(1)}s</span></div>
+      <div className="scan-progress-track"><i style={{ width: progress.percent + "%" }}/></div>
+    </div>
+
+    <div className="processing-lines">
+      <div className={"processing-line " + (progress.plateStatus === "done" ? "done" : progress.plateStatus === "fallback" ? "fallback" : "working")}>
+        <span>{progress.plateStatus === "done" ? <Check size={13}/> : <ScanLine size={13}/>}</span>
+        <div><strong>{t.scanPlate}</strong><small>{progress.plateStatus === "done" ? `${progress.plate || ""} · Plate engine ✓${progress.plateMs ? ` · ${(progress.plateMs / 1000).toFixed(1)}s` : ""}` : progress.plateStatus === "fallback" ? t.scanPlateFallback : "Plate Recognizer · processing…"}</small></div>
+      </div>
+      <div className={"processing-line " + (progress.vehicleStatus === "done" ? "done" : progress.vehicleStatus === "fallback" ? "fallback" : "working")}>
+        <span>{progress.vehicleStatus === "done" ? <Check size={13}/> : <Sparkles size={13}/>}</span>
+        <div><strong>{t.scanVehicle}</strong><small>{progress.vehicleStatus === "done" ? `Vehicle AI ✓${progress.vehicleMs ? ` · ${(progress.vehicleMs / 1000).toFixed(1)}s` : ""}` : elapsed > 8000 ? t.scanWaiting : "Gemini · processing…"}</small></div>
+      </div>
+    </div>
+  </div>;
 }
 
 function Record({ car, t, close }: { car: Car; t: typeof el; close: () => void }) {
