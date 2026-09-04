@@ -106,7 +106,7 @@ export default function Home() {
     if (!image) { setCameraError(true); setScanError("Χρειάζεται φωτογραφία για να γίνει η αναγνώριση."); return; }
     stopCamera(); setScanError(""); setScanner("processing");
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 22_000);
+    const timeout = window.setTimeout(() => controller.abort(), 35_000);
     try {
       const response = await fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ imageData: image, mimeType: image.startsWith("data:image/png") ? "image/png" : "image/jpeg" }) });
       const payload = await response.json() as ScanResult & { error?: string };
