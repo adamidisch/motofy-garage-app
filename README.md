@@ -22,12 +22,12 @@ npm run build
 
 - `app/` — interface and mobile scan flow
 - `worker/index.ts` — `POST /api/scan` API
-- `db/` and `drizzle/` — Cloudflare D1 schema and migrations
-- `.openai/hosting.json` — Sites hosting bindings
+- `db/` and `drizzle/` — legacy/reference D1 schema only; Supabase is the decided persistence layer
+- `.openai/hosting.json` — temporary OpenAI Sites development-hosting bindings
 
 The scanner sends the selected image to a server-side AI integration. Configure its key only as a deployment secret; never put it in the browser bundle, Git history or a committed `.env` file.
 
-For product rules and the current scan-integration state, read [CLAUDE.md](CLAUDE.md) before making a change.
+For product rules and the current scan-integration state, read [CLAUDE.md](CLAUDE.md) before making a change. For the source-of-truth, live-site and release procedure, read [DEPLOYMENT.md](DEPLOYMENT.md). A merge to GitHub `main` is not proof that the OpenAI Sites deployment has been refreshed.
 
 ## Workspace auth headers
 
