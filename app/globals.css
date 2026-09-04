@@ -38,3 +38,23 @@ button { font:inherit; border:0; cursor:pointer; }
 .camera-stage img { width:100%; height:100%; object-fit:cover; }
 .scanner-modal { -webkit-user-select:none; user-select:none; }
 .visually-hidden { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip:rect(0, 0, 0, 0) !important; white-space:nowrap !important; border:0 !important; }
+
+
+/* v0.2.2 — truthful dual-engine scan progress */
+.processing-phase { margin:7px 0 13px !important; color:#60779c !important; font-weight:700; }
+.scan-progress-shell { width:min(100%,300px); margin:0 auto 14px; }
+.scan-progress-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; color:#7a8ca8; font-size:10px; font-weight:750; }
+.scan-progress-top strong { color:#5269c7; font-size:11px; }
+.scan-progress-track { height:6px; overflow:hidden; border-radius:999px; background:#dce7f4; box-shadow:inset 0 1px 2px rgba(63,86,128,.08); }
+.scan-progress-track i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#55bdd5,#6268cf); transition:width .48s cubic-bezier(.22,.75,.2,1); position:relative; }
+.scan-progress-track i:after { content:""; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent); transform:translateX(-100%); animation:scan-progress-shimmer 1.25s linear infinite; }
+.processing-lines { width:min(100%,310px); display:flex; flex-direction:column; gap:7px; text-align:left; }
+.processing-line { min-height:49px; display:flex; align-items:center; gap:9px; padding:8px 10px; border:1px solid rgba(121,151,192,.13); border-radius:12px; background:rgba(231,239,249,.72); }
+.processing-line > span { width:25px; height:25px; flex:0 0 auto; display:grid; place-items:center; border-radius:8px; color:#6077ca; background:#dfe7fb; }
+.processing-line > div { min-width:0; display:flex; flex-direction:column; gap:2px; }
+.processing-line strong { color:#405d87; font-size:11px; }
+.processing-line small { color:#7a8da9; font-size:10px; line-height:1.3; }
+.processing-line.done > span { color:#319a79; background:#dff3eb; }
+.processing-line.fallback > span { color:#9a7744; background:#f5ecd9; }
+@keyframes scan-progress-shimmer { to { transform:translateX(100%); } }
+@media (prefers-reduced-motion:reduce) { .scan-progress-track i { transition:none; } .scan-progress-track i:after { animation:none; } }
