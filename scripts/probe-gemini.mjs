@@ -20,6 +20,7 @@ import { extname } from "node:path";
 import { runVehicleScan, buildScanRequestBody, GEMINI_INTERACTIONS_URL, redactSecrets } from "../lib/scan-core.mjs";
 
 const MIME_BY_EXT = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
+const PROBE_TIMEOUT_MS = 60_000;
 
 /**
  * Hard guarantee that this script cannot print the API key.
@@ -85,7 +86,8 @@ const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) fail("GEMINI_API_KEY is not set. Export it, or pass --endpoint to test the running app instead.");
 
 console.log(`mode       upstream -> ${GEMINI_INTERACTIONS_URL}`);
-console.log(`model      ${buildScanRequestBody({ imageData: "x", mimeType }).model}\n`);
+console.log(`model      ${buildScanRequestBody({ imageData: "x", mimeType }).model}`);
+console.log(`timeout    ${PROBE_TIMEOUT_MS / 1000}s\n`);
 
 const started = Date.now();
 try {
@@ -93,6 +95,7 @@ try {
     apiKey,
     imageData,
     mimeType,
+    timeoutMs: PROBE_TIMEOUT_MS,
     log: (message, ...rest) => console.error("  [log]", message, ...rest),
   });
 
