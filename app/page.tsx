@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Bell, CalendarDays, Camera, CarFront, Check, ChevronRight, ClipboardCheck, ClipboardList, Clock3, Ellipsis, LayoutGrid, MoreHorizontal, Phone, Plus, ScanLine, Search, Settings2, Sparkles, StickyNote, UserRound, Wrench, X } from "lucide-react";
+import { Bell, CalendarDays, Camera, CarFront, Check, ChevronRight, ClipboardCheck, ClipboardList, Clock3, Ellipsis, LayoutGrid, MoreHorizontal, Phone, Plus, ScanLine, Search, Settings2, Sparkles, StickyNote, UserRound, Wrench, X } from "lucide-react";
+
+import { createBrowserStorage, createRepository } from "../lib/data/repository.mjs";
+import { buildVehicleListRow, buildVehicleRecord, formatMileage, formatTodayLabel, matchesVehicleQuery } from "../lib/data/vehicle-record.mjs";
+import type { Repository } from "../lib/data/repository.d.mts";
+import type { VehicleListRow } from "../lib/data/vehicle-record.d.mts";
+import VehicleRecord from "./vehicle-record";
 
 type View = "home" | "cars" | "work" | "customers" | "settings";
-type Car = { id: string; plate: string; name: string; year: string; km: string; customer: string; work: string; tone: string };
 type ScanResult = { plate: string | null; make: string | null; model: string | null; confidence: "high" | "medium" | "low"; source: "ai"; provider?: string; elapsedMs?: number };
 type ScanProgress = {
   percent: number;
@@ -19,12 +24,6 @@ type ScanProgress = {
 const APP_VERSION = "0.2.2";
 const APP_RELEASE = "Phase 1";
 
-const cars: Car[] = [
-  { id: "yaris", plate: "ΚΒΥ 328", name: "Toyota Yaris", year: "2018", km: "86.420 km", customer: "Μάριος Παναγή", work: "Service σε 5 ημέρες", tone: "mint" },
-  { id: "bmw", plate: "ΚΜΡ 714", name: "BMW 320i", year: "2020", km: "42.180 km", customer: "Ανδρέας Χρίστου", work: "Διάγνωση κινητήρα", tone: "blue" },
-  { id: "merc", plate: "ΜΡΑ 402", name: "Mercedes A200", year: "2019", km: "61.304 km", customer: "Ελένη Αντωνίου", work: "Προσφορά σε αναμονή", tone: "peach" },
-  { id: "ford", plate: "ΚΜΝ 246", name: "Ford Fiesta", year: "2017", km: "104.909 km", customer: "Μιχάλης Σάββα", work: "Αλλαγή λαδιών · 14:30", tone: "lilac" },
-];
 
 const jobs = [
   { car: "Ford Fiesta", plate: "ΚΜΝ 246", title: "Αλλαγή λαδιών & φίλτρου", time: "14:30", status: "scheduled", owner: "Μιχάλης Σάββα" },
@@ -39,8 +38,8 @@ const customers = [
   { initials: "ΜΣ", name: "Μιχάλης Σάββα", phone: "97 016 404", car: "Ford Fiesta · ΚΜΝ 246", count: 1, tone: "lilac" },
 ];
 
-const el = { scanPrepare: "Προετοιμασία φωτογραφίας", scanPlate: "Ανάγνωση πινακίδας", scanVehicle: "Αναγνώριση οχήματος", scanVerify: "Επιβεβαίωση αποτελέσματος", scanPlateFallback: "Ο γρήγορος έλεγχος δεν ολοκληρώθηκε · συνεχίζει το AI", scanWaiting: "Το AI χρειάζεται λίγο περισσότερο χρόνο…", today: "ΣΗΜΕΡΑ · 2 ΣΕΠ", hello: "Καλησπέρα, Ανδρέα", subtitle: "Τι δουλειά έχουμε σήμερα;", scan: "Σάρωση αυτοκινήτου", scanTitle: "Σκάναρε το αυτοκίνητο", scanText: "Πινακίδα, πελάτης και ιστορικό — αμέσως μπροστά σου.", home: "Αρχική", cars: "Αυτοκίνητα", work: "Εργασίες", customers: "Πελάτες", add: "Προσθήκη", appointment: "Ραντεβού", notes: "Σημειώσεις", jobs: "Εργασίες", activity: "Πρόσφατη κίνηση", garage: "Συνεργείο", all: "Όλα", open: "Άνοιγμα", newCar: "Νέο αυτοκίνητο", newJob: "Νέα εργασία", newCustomer: "Νέος πελάτης", settings: "Ρυθμίσεις", signout: "Έξοδος", camera: "Κάμερα πινακίδας", cameraText: "Βάλε την πινακίδα μέσα στο πλαίσιο και πάτα Αναγνώριση.", recognize: "Αναγνώριση", demo: "Χρήση demo εικόνας", cancel: "Ακύρωση", processing: "Διαβάζουμε την πινακίδα…", found: "Βρέθηκε όχημα", openRecord: "Άνοιγμα καρτέλας", retake: "Νέα λήψη", searchCar: "Αναζήτηση πινακίδας ή αυτοκινήτου", searchCustomer: "Αναζήτηση πελάτη", allCars: "Όλα τα αυτοκίνητα", activeJobs: "Εργασίες σήμερα", customerList: "Οι πελάτες σου", noResults: "Δεν βρέθηκε αποτέλεσμα", vehicle: "Καρτέλα οχήματος", owner: "Πελάτης", mileage: "Χιλιόμετρα", currentWork: "Τρέχουσα εργασία", note: "Σημείωση", appearance: "Εμφάνιση", theme: "Theme", language: "Γλώσσα", preferences: "Ρυθμίσεις συνεργείου", saved: "Αποθηκεύτηκε", progress: "Σε εξέλιξη", history: "Ιστορικό", vehicles: "οχήματα" };
-const en = { scanPrepare: "Preparing photo", scanPlate: "Reading plate", scanVehicle: "Identifying vehicle", scanVerify: "Verifying result", scanPlateFallback: "Fast plate check did not complete · AI is continuing", scanWaiting: "The AI needs a little more time…", today: "TODAY · SEP 2", hello: "Good evening, Andreas", subtitle: "What needs moving today?", scan: "Scan vehicle", scanTitle: "Scan the car", scanText: "Plate, customer and history — ready when you are.", home: "Home", cars: "Cars", work: "Jobs", customers: "Customers", add: "Add", appointment: "Appointments", notes: "Notes", jobs: "Jobs", activity: "Recent activity", garage: "Garage", all: "All", open: "Open", newCar: "New car", newJob: "New job", newCustomer: "New customer", settings: "Settings", signout: "Sign out", camera: "Plate camera", cameraText: "Place the plate in frame then tap Recognise.", recognize: "Recognise", demo: "Use demo image", cancel: "Cancel", processing: "Reading the plate…", found: "Vehicle found", openRecord: "Open record", retake: "Retake", searchCar: "Search plate or vehicle", searchCustomer: "Search customer", allCars: "All vehicles", activeJobs: "Today’s jobs", customerList: "Your customers", noResults: "No results found", vehicle: "Vehicle record", owner: "Customer", mileage: "Mileage", currentWork: "Current job", note: "Note", appearance: "Appearance", theme: "Theme", language: "Language", preferences: "Garage settings", saved: "Saved", progress: "In progress", history: "History", vehicles: "vehicles" };
+const el = { scanPrepare: "Προετοιμασία φωτογραφίας", scanPlate: "Ανάγνωση πινακίδας", scanVehicle: "Αναγνώριση οχήματος", scanVerify: "Επιβεβαίωση αποτελέσματος", scanPlateFallback: "Ο γρήγορος έλεγχος δεν ολοκληρώθηκε · συνεχίζει το AI", scanWaiting: "Το AI χρειάζεται λίγο περισσότερο χρόνο…", today: "ΣΗΜΕΡΑ · 2 ΣΕΠ", hello: "Καλησπέρα, Ανδρέα", subtitle: "Τι δουλειά έχουμε σήμερα;", scan: "Σάρωση αυτοκινήτου", scanTitle: "Σκάναρε το αυτοκίνητο", scanText: "Πινακίδα, πελάτης και ιστορικό — αμέσως μπροστά σου.", home: "Αρχική", cars: "Αυτοκίνητα", work: "Εργασίες", customers: "Πελάτες", add: "Προσθήκη", appointment: "Ραντεβού", notes: "Σημειώσεις", jobs: "Εργασίες", activity: "Πρόσφατη κίνηση", garage: "Συνεργείο", all: "Όλα", open: "Άνοιγμα", newCar: "Νέο αυτοκίνητο", newJob: "Νέα εργασία", newCustomer: "Νέος πελάτης", settings: "Ρυθμίσεις", signout: "Έξοδος", camera: "Κάμερα πινακίδας", cameraText: "Βάλε την πινακίδα μέσα στο πλαίσιο και πάτα Αναγνώριση.", recognize: "Αναγνώριση", demo: "Χρήση demo εικόνας", cancel: "Ακύρωση", processing: "Διαβάζουμε την πινακίδα…", found: "Βρέθηκε όχημα", openRecord: "Άνοιγμα καρτέλας", retake: "Νέα λήψη", searchCar: "Αναζήτηση πινακίδας ή αυτοκινήτου", searchCustomer: "Αναζήτηση πελάτη", allCars: "Όλα τα αυτοκίνητα", activeJobs: "Εργασίες σήμερα", customerList: "Οι πελάτες σου", noResults: "Δεν βρέθηκε αποτέλεσμα", vehicle: "Καρτέλα οχήματος", owner: "Πελάτης", mileage: "Χιλιόμετρα", currentWork: "Τρέχουσα εργασία", note: "Σημείωση", appearance: "Εμφάνιση", theme: "Theme", language: "Γλώσσα", preferences: "Ρυθμίσεις συνεργείου", saved: "Αποθηκεύτηκε", progress: "Σε εξέλιξη", history: "Ιστορικό", vehicles: "οχήματα", overview: "Επισκόπηση", todayFilter: "Σήμερα", lastActivity: "Τελευταία κίνηση", noCustomer: "Χωρίς πελάτη", noCustomerHint: "Το όχημα δεν έχει συνδεθεί με πελάτη ακόμα.", noJobs: "Καμία εργασία", noJobsHint: "Δεν έχει καταγραφεί εργασία για αυτό το όχημα.", noOpenJob: "Καμία ανοιχτή εργασία", noOpenJobHint: "Τίποτα σε εξέλιξη αυτή τη στιγμή.", noHistory: "Χωρίς ιστορικό", noNotes: "Καμία σημείωση", noNotesHint: "Οι σημειώσεις του συνεργείου θα εμφανίζονται εδώ.", noPhone: "Χωρίς τηλέφωνο", otherVehicles: "Άλλα οχήματα", onlyVehicle: "Μοναδικό όχημα του πελάτη", unknownVehicle: "Όχημα χωρίς στοιχεία", photos: "φωτογραφίες", scanDiffers: "Η σάρωση διάβασε διαφορετικά στοιχεία", scanUnconfirmed: "Στοιχεία από σάρωση", keepExisting: "Η καρτέλα δεν άλλαξε. Η επιβεβαίωση γίνεται χειροκίνητα.", confirmLater: "Δεν έχουν επιβεβαιωθεί ακόμα.", fieldMake: "Μάρκα", fieldModel: "Μοντέλο", statusScheduled: "Προγραμματισμένη", statusInProgress: "Σε εξέλιξη", statusDone: "Ολοκληρώθηκε", statusCancelled: "Ακυρώθηκε", activityScan: "Σάρωση πινακίδας", activityCreated: "Δημιουργία καρτέλας", newVehiclePending: "Νέο όχημα — η δημιουργία έρχεται στο επόμενο βήμα", noVehicles: "Κανένα όχημα ακόμα" };
+const en = { scanPrepare: "Preparing photo", scanPlate: "Reading plate", scanVehicle: "Identifying vehicle", scanVerify: "Verifying result", scanPlateFallback: "Fast plate check did not complete · AI is continuing", scanWaiting: "The AI needs a little more time…", today: "TODAY · SEP 2", hello: "Good evening, Andreas", subtitle: "What needs moving today?", scan: "Scan vehicle", scanTitle: "Scan the car", scanText: "Plate, customer and history — ready when you are.", home: "Home", cars: "Cars", work: "Jobs", customers: "Customers", add: "Add", appointment: "Appointments", notes: "Notes", jobs: "Jobs", activity: "Recent activity", garage: "Garage", all: "All", open: "Open", newCar: "New car", newJob: "New job", newCustomer: "New customer", settings: "Settings", signout: "Sign out", camera: "Plate camera", cameraText: "Place the plate in frame then tap Recognise.", recognize: "Recognise", demo: "Use demo image", cancel: "Cancel", processing: "Reading the plate…", found: "Vehicle found", openRecord: "Open record", retake: "Retake", searchCar: "Search plate or vehicle", searchCustomer: "Search customer", allCars: "All vehicles", activeJobs: "Today’s jobs", customerList: "Your customers", noResults: "No results found", vehicle: "Vehicle record", owner: "Customer", mileage: "Mileage", currentWork: "Current job", note: "Note", appearance: "Appearance", theme: "Theme", language: "Language", preferences: "Garage settings", saved: "Saved", progress: "In progress", history: "History", vehicles: "vehicles", overview: "Overview", todayFilter: "Today", lastActivity: "Last activity", noCustomer: "No customer", noCustomerHint: "This vehicle is not linked to a customer yet.", noJobs: "No jobs", noJobsHint: "Nothing has been recorded for this vehicle.", noOpenJob: "No open job", noOpenJobHint: "Nothing in progress right now.", noHistory: "No history", noNotes: "No notes", noNotesHint: "Garage notes will appear here.", noPhone: "No phone number", otherVehicles: "Other vehicles", onlyVehicle: "The customer's only vehicle", unknownVehicle: "Vehicle without details", photos: "photos", scanDiffers: "The scan read different details", scanUnconfirmed: "Details from a scan", keepExisting: "The record is unchanged. Confirming is a manual step.", confirmLater: "Not confirmed yet.", fieldMake: "Make", fieldModel: "Model", statusScheduled: "Scheduled", statusInProgress: "In progress", statusDone: "Completed", statusCancelled: "Cancelled", activityScan: "Plate scan", activityCreated: "Record created", newVehiclePending: "New vehicle — creation arrives in the next step", noVehicles: "No vehicles yet" };
 
 export default function Home() {
   const [lang, setLang] = useState<"el" | "en">("el");
@@ -57,7 +56,12 @@ export default function Home() {
   });
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [selectedCar, setSelectedCar] = useState<Car | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [scanForRecord, setScanForRecord] = useState<ScanResult | null>(null);
+  // Created on the client only. The seed is stamped with the current time, so
+  // building it during SSR and again after hydration would produce two
+  // different trees.
+  const [repository, setRepository] = useState<Repository | null>(null);
   const [toast, setToast] = useState("");
   const [theme, setTheme] = useState("sky");
   const headerRef = useRef<HTMLDivElement>(null);
@@ -72,17 +76,28 @@ export default function Home() {
   function selectView(next: View) { setView(next); setQuery(""); setMenuOpen(false); setAddOpen(false); }
 
   useEffect(() => {
+    setRepository(createRepository({ storage: createBrowserStorage() }));
+  }, []);
+
+  const vehicleRows: VehicleListRow[] = repository
+    ? repository.listVehicles().map((vehicle) => buildVehicleListRow(repository, vehicle))
+    : [];
+  const openRecord = repository && selectedVehicleId
+    ? buildVehicleRecord({ repository, vehicleId: selectedVehicleId, scan: scanForRecord })
+    : null;
+
+  useEffect(() => {
     const savedLang = localStorage.getItem("motofy-language");
     const savedTheme = localStorage.getItem("motofy-theme");
     const timer = window.setTimeout(() => { if (savedLang === "el" || savedLang === "en") setLang(savedLang); if (savedTheme) setTheme(savedTheme); }, 0);
     const outside = (event: PointerEvent) => { if (!headerRef.current?.contains(event.target as Node)) { setMenuOpen(false); setAddOpen(false); } };
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setMenuOpen(false); setAddOpen(false); streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; setScanner(null); setCameraError(false); setSelectedCar(null); } };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setMenuOpen(false); setAddOpen(false); streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; setScanner(null); setCameraError(false); setSelectedVehicleId(null); setScanForRecord(null); } };
     document.addEventListener("pointerdown", outside); document.addEventListener("keydown", escape);
     return () => { window.clearTimeout(timer); document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; };
   }, []);
 
   useEffect(() => {
-    if (!scanner && !selectedCar) return;
+    if (!scanner && !selectedVehicleId) return;
     const scrollY = window.scrollY;
     const { body } = document;
     const previous = { position: body.style.position, top: body.style.top, width: body.style.width, overflow: body.style.overflow };
@@ -97,7 +112,7 @@ export default function Home() {
       body.style.overflow = previous.overflow;
       window.scrollTo(0, scrollY);
     };
-  }, [scanner, selectedCar]);
+  }, [scanner, selectedVehicleId]);
 
   function switchLanguage() { const next = lang === "el" ? "en" : "el"; setLang(next); localStorage.setItem("motofy-language", next); }
   function chooseTheme(next: string) { setTheme(next); localStorage.setItem("motofy-theme", next); notice(t.saved); }
@@ -250,10 +265,22 @@ export default function Home() {
     const reader = new FileReader(); reader.onload = () => { setSelectedImage(String(reader.result)); setCameraError(false); setScanError(""); stopCamera(); };
     reader.readAsDataURL(file);
   }
+  /**
+   * Open the record the plate belongs to.
+   *
+   * Lookup only. An unknown plate is left alone rather than filed as a record,
+   * because creating one is a decision the mechanic has not made yet; that flow
+   * arrives in the next step.
+   */
   function openFoundCar() {
-    if (!scanResult || (!scanResult.plate && !scanResult.make)) return;
-    const name = [scanResult.make, scanResult.model].filter(Boolean).join(" ") || "Όχημα προς επιβεβαίωση";
-    closeScanner(); setSelectedCar({ id: "scan-" + Date.now(), plate: scanResult.plate || "—", name, year: "—", km: "—", customer: "Νέος πελάτης", work: "Νέα καρτέλα προς επιβεβαίωση", tone: "blue" }); setView("cars"); notice(t.openRecord);
+    if (!scanResult?.plate || !repository) return;
+    const existing = repository.findVehicleByPlate(scanResult.plate);
+    if (!existing) { notice(t.newVehiclePending); return; }
+    closeScanner();
+    setScanForRecord(scanResult);
+    setSelectedVehicleId(existing.id);
+    setView("cars");
+    notice(t.openRecord);
   }
   const nav = [["home", LayoutGrid, t.home], ["cars", CarFront, t.cars], ["work", ClipboardList, t.work], ["customers", UserRound, t.customers]] as const;
 
@@ -266,8 +293,8 @@ export default function Home() {
         {menuOpen && <div className="action-popover menu-popover"><button onClick={() => selectView("settings")}><Settings2 size={16}/>{t.settings}</button><button onClick={() => notice(t.signout)}><X size={16}/>{t.signout}</button></div>}
       </header>
       <div className="content">
-        {view === "home" && <Dashboard t={t} startScanner={startScanner} selectView={selectView} notice={notice}/>}
-        {view === "cars" && <Cars t={t} query={query} setQuery={setQuery} selectCar={setSelectedCar}/>}
+        {view === "home" && <Dashboard t={t} todayLabel={formatTodayLabel(new Date(), lang)} startScanner={startScanner} selectView={selectView} notice={notice}/>}
+        {view === "cars" && <Cars t={t} lang={lang} query={query} setQuery={setQuery} rows={vehicleRows} selectVehicle={setSelectedVehicleId}/>}
         {view === "work" && <Work t={t} notice={notice}/>}
         {view === "customers" && <Customers t={t} query={query} setQuery={setQuery} notice={notice}/>}
         {view === "settings" && <Settings t={t} theme={theme} chooseTheme={chooseTheme} lang={lang} switchLanguage={switchLanguage}/>}
@@ -275,13 +302,13 @@ export default function Home() {
       <nav className="bottom-nav" aria-label="Main navigation">{nav.map(([id, Icon, label]) => <button key={id} className={view === id ? "selected" : ""} onClick={() => selectView(id)}><Icon size={20}/><span>{label}</span></button>)}<button className="nav-add" onClick={() => { setAddOpen(!addOpen); setMenuOpen(false); }}><span><Plus size={22}/></span><small>{t.add}</small></button></nav>
     </section>
     {scanner && <Scanner stage={scanner} t={t} error={cameraError} scanError={scanError} result={scanResult} progress={scanProgress} selectedImage={selectedImage} videoRef={videoRef} fileInputRef={fileInputRef} close={closeScanner} recognise={recognise} choosePhoto={choosePhoto} openRecord={openFoundCar} restart={startScanner}/>}
-    {selectedCar && <Record car={selectedCar} t={t} close={() => setSelectedCar(null)}/>}
+    {openRecord && <VehicleRecord record={openRecord} t={t} lang={lang} close={() => { setSelectedVehicleId(null); setScanForRecord(null); }} openVehicle={(id) => { setScanForRecord(null); setSelectedVehicleId(id); }}/>}
     {toast && <div className="toast"><Check size={16}/>{toast}</div>}
   </main>;
 }
 
-function Dashboard({ t, startScanner, selectView, notice }: { t: typeof el; startScanner: () => void; selectView: (view: View) => void; notice: (message: string) => void }) {
-  return <><section className="intro-row"><div><p className="eyebrow">{t.today}</p><h1>{t.hello}</h1><p className="intro-copy">{t.subtitle}</p></div><button className="notification"><Bell size={18}/><i/></button></section>
+function Dashboard({ t, todayLabel, startScanner, selectView, notice }: { t: typeof el; todayLabel: string; startScanner: () => void; selectView: (view: View) => void; notice: (message: string) => void }) {
+  return <><section className="intro-row"><div><p className="eyebrow">{todayLabel}</p><h1>{t.hello}</h1><p className="intro-copy">{t.subtitle}</p></div><button className="notification"><Bell size={18}/><i/></button></section>
     <section className="scan-card"><div className="scan-orb"><ScanLine size={30}/></div><div className="scan-copy"><span className="pill"><Sparkles size={13}/> AI READY</span><h2>{t.scanTitle}</h2><p>{t.scanText}</p></div><button className="scan-button" onClick={startScanner}>{t.scan}<span><Camera size={16}/></span></button></section>
     <section className="metrics"><button onClick={() => selectView("work")}><span className="metric-icon indigo"><CalendarDays size={18}/></span><div><strong>4</strong><p>{t.appointment}</p></div></button><button onClick={() => notice(t.note)}><span className="metric-icon aqua"><StickyNote size={18}/></span><div><strong>2</strong><p>{t.notes}</p></div></button><button onClick={() => selectView("work")}><span className="metric-icon gold"><ClipboardCheck size={18}/></span><div><strong>6</strong><p>{t.jobs}</p></div></button></section>
     <section className="section-heading"><div><p className="eyebrow">{t.activity}</p><h2>{t.garage}</h2></div><button onClick={() => selectView("work")}>{t.all}<ChevronRight size={15}/></button></section>
@@ -293,15 +320,16 @@ function Intro({ eyebrow, title, action }: { eyebrow: string; title: string; act
 function SearchBox({ value, setValue, placeholder }: { value: string; setValue: (value: string) => void; placeholder: string }) { return <label className="search-field"><Search size={18}/><input value={value} onChange={(event) => setValue(event.target.value)} placeholder={placeholder}/>{value && <button aria-label="Clear search" onClick={() => setValue("")}><X size={16}/></button>}</label>; }
 function Empty({ text }: { text: string }) { return <div className="empty-inline"><Search size={20}/>{text}</div>; }
 
-function Cars({ t, query, setQuery, selectCar }: { t: typeof el; query: string; setQuery: (value: string) => void; selectCar: (car: Car) => void }) {
-  const filtered = cars.filter((car) => (car.name + car.plate + car.customer).toLowerCase().includes(query.toLowerCase()));
-  return <><Intro eyebrow={t.allCars} title={t.cars} action={<span className="page-count">4</span>}/><SearchBox value={query} setValue={setQuery} placeholder={t.searchCar}/><section className="vehicle-list">{filtered.map((car) => <button className="vehicle-row" key={car.id} onClick={() => selectCar(car)}><span className={"vehicle-badge " + car.tone}><CarFront size={19}/></span><span className="vehicle-text"><strong>{car.name}<small>{car.year} · {car.plate}</small></strong><small>{car.customer} · {car.km}</small><em>{car.work}</em></span><ChevronRight size={18}/></button>)}{!filtered.length && <Empty text={t.noResults}/>}</section></>;
+function Cars({ t, lang, query, setQuery, rows, selectVehicle }: { t: typeof el; lang: "el" | "en"; query: string; setQuery: (value: string) => void; rows: VehicleListRow[]; selectVehicle: (vehicleId: string) => void }) {
+  const filtered = rows.filter((row) => matchesVehicleQuery(row, query));
+  const tones = ["mint", "blue", "peach", "lilac"];
+  return <><Intro eyebrow={t.allCars} title={t.cars} action={<span className="page-count">{rows.length}</span>}/><SearchBox value={query} setValue={setQuery} placeholder={t.searchCar}/><section className="vehicle-list">{filtered.map((row, index) => <button className="vehicle-row" key={row.vehicle.id} onClick={() => selectVehicle(row.vehicle.id)}><span className={"vehicle-badge " + tones[index % tones.length]}><CarFront size={19}/></span><span className="vehicle-text"><strong>{row.title ?? t.unknownVehicle}<small>{[row.subtitle, row.vehicle.plate].filter(Boolean).join(" · ")}</small></strong><small>{[row.customer?.name ?? t.noCustomer, row.vehicle.mileage_km !== null ? formatMileage(row.vehicle.mileage_km, lang) : null].filter(Boolean).join(" · ")}</small><em>{row.currentJob?.title ?? t.noOpenJob}</em></span><ChevronRight size={18}/></button>)}{!filtered.length && <Empty text={rows.length ? t.noResults : t.noVehicles}/>}</section></>;
 }
 
 function Work({ t, notice }: { t: typeof el; notice: (message: string) => void }) {
   const [scope, setScope] = useState<"today" | "active" | "history">("today");
   const visibleJobs = scope === "today" ? jobs : jobs.filter((job) => scope === "active" ? job.status === "active" : job.status === "done");
-  return <><Intro eyebrow={t.activeJobs} title={t.work} action={<button className="compact-add" onClick={() => notice(t.newJob)}><Plus size={16}/>{t.add}</button>}/><div className="filter-tabs"><button className={scope === "today" ? "active" : ""} onClick={() => setScope("today")}>{t.today}</button><button className={scope === "active" ? "active" : ""} onClick={() => setScope("active")}>{t.progress}</button><button className={scope === "history" ? "active" : ""} onClick={() => setScope("history")}>{t.history}</button></div><section className="job-list">{visibleJobs.map((job) => <article className="job-card" key={job.car}><div className="job-top"><span className={"status-dot " + job.status}/><strong>{job.car}<small>{job.plate} · {job.owner}</small></strong><button aria-label={job.car + " options"} onClick={() => notice(job.car)}><Ellipsis size={18}/></button></div><p>{job.title}</p><footer><span className={"status-label " + job.status}>{job.time}</span><button onClick={() => notice(t.open)}>{t.open}<ChevronRight size={15}/></button></footer></article>)}</section></>;
+  return <><Intro eyebrow={t.activeJobs} title={t.work} action={<button className="compact-add" onClick={() => notice(t.newJob)}><Plus size={16}/>{t.add}</button>}/><div className="filter-tabs"><button className={scope === "today" ? "active" : ""} onClick={() => setScope("today")}>{t.todayFilter}</button><button className={scope === "active" ? "active" : ""} onClick={() => setScope("active")}>{t.progress}</button><button className={scope === "history" ? "active" : ""} onClick={() => setScope("history")}>{t.history}</button></div><section className="job-list">{visibleJobs.map((job) => <article className="job-card" key={job.car}><div className="job-top"><span className={"status-dot " + job.status}/><strong>{job.car}<small>{job.plate} · {job.owner}</small></strong><button aria-label={job.car + " options"} onClick={() => notice(job.car)}><Ellipsis size={18}/></button></div><p>{job.title}</p><footer><span className={"status-label " + job.status}>{job.time}</span><button onClick={() => notice(t.open)}>{t.open}<ChevronRight size={15}/></button></footer></article>)}</section></>;
 }
 
 function Customers({ t, query, setQuery, notice }: { t: typeof el; query: string; setQuery: (value: string) => void; notice: (message: string) => void }) {
@@ -358,6 +386,3 @@ function ProcessingState({ t, progress }: { t: typeof el; progress: ScanProgress
   </div>;
 }
 
-function Record({ car, t, close }: { car: Car; t: typeof el; close: () => void }) {
-  return <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="record-modal"><header><button aria-label={t.cancel} onClick={close}><ArrowLeft size={20}/></button><div><p className="eyebrow">{t.vehicle}</p><h2>{car.name}</h2></div><button aria-label={t.cancel} onClick={close}><X size={20}/></button></header><div className="plate-display">{car.plate}</div><section className="record-grid"><div><small>{t.owner}</small><strong>{car.customer}</strong></div><div><small>{t.mileage}</small><strong>{car.km}</strong></div><div><small>{t.currentWork}</small><strong>{car.work}</strong></div></section><section className="record-note"><StickyNote size={18}/><p><strong>{t.note}</strong>Το όχημα είναι έτοιμο για τον επόμενο έλεγχο.</p></section><button className="primary-button full-width" onClick={close}><Check size={18}/>{t.open}</button></section></div>;
-}
