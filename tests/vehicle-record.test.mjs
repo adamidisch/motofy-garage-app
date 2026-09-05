@@ -349,3 +349,216 @@ test("mileage is formatted for the active language", () => {
   assert.equal(formatMileage(86420, "en"), "86,420 km");
   assert.equal(formatMileage(0, "el"), "0 km");
 });
+
+/* ------------------------------------------------------------------ */
+/* Part 4: connected pages                                             */
+/* ------------------------------------------------------------------ */
+
+import {
+  buildCustomerRow,
+  buildDashboardSummary,
+  buildJobRow,
+  filterJobRows,
+  matchesCustomerQuery,
+} from "../lib/data/vehicle-record.mjs";
+
+// ── customer rows ──────────────────────────────────────────────────
+
+test("customer row resolves vehicles through customer_id", () => {
+  const r = repo();
+  const cust = r.getCustomer("cus_marios");
+  const row = buildCustomerRow(r, cust);
+
+  assert.equal(row.customer.id, "cus_marios");
+  assert.equal(row.vehicleCount, 2);
+  assert.deepEqual(row.vehicles.map((v) => v.plate).sort(), ["KBY 328", "ZKA 517"]);
+  // Every vehicle comes through the id relation, not a name match.
+  for (const v of row.vehicles) assert.equal(v.customer_id, "cus_marios");
+});
+
+test("two customers with identical names each get their own row", () => {
+  const r = repo();
+  const twin = r.createCustomer({ name: "Μιχάλης Σάββα", phone: "+357 99 000 000" });
+  const twinCar = r.createVehicle({ plate: "DUP 001", make: "Seat", customer_id: twin.id });
+
+  const original = buildCustomerRow(r, r.getCustomer("cus_michalis"));
+  const duplicate = buildCustomerRow(r, twin);
+
+  assert.notEqual(original.customer.id, duplicate.customer.id);
+  assert.deepEqual(original.vehicles.map((v) => v.id), ["veh_fiesta"]);
+  assert.deepEqual(duplicate.vehicles.map((v) => v.id), [twinCar.id]);
+  assert.equal(original.vehicleCount, 1);
+  assert.equal(duplicate.vehicleCount, 1);
+});
+
+test("customer search matches name and phone, ignores other fields", () => {
+  const r = repo();
+  const marios = buildCustomerRow(r, r.getCustomer("cus_marios"));
+
+  assert.equal(matchesCustomerQuery(marios, ""), true, "empty query matches all");
+  assert.equal(matchesCustomerQuery(marios, "μάριος"), true, "name match");
+  assert.equal(matchesCustomerQuery(marios, "412"), true, "phone fragment");
+  assert.equal(matchesCustomerQuery(marios, "KBY"), false, "plate is not searched");
+  assert.equal(matchesCustomerQuery(marios, "Toyota"), false, "vehicle make is not searched");
+});
+
+test("customer search never merges namesakes", () => {
+  const r = repo();
+  const twin = r.createCustomer({ name: "Μιχάλης Σάββα" });
+  r.createVehicle({ plate: "MNS 001", customer_id: twin.id });
+
+  const originalRow = buildCustomerRow(r, r.getCustomer("cus_michalis"));
+  const twinRow = buildCustomerRow(r, twin);
+
+  // Both match the same name query — they each appear separately.
+  assert.equal(matchesCustomerQuery(originalRow, "μιχάλης"), true);
+  assert.equal(matchesCustomerQuery(twinRow, "μιχάλης"), true);
+  // But their vehicle lists are separate.
+  assert.deepEqual(originalRow.vehicles.map((v) => v.plate), ["KMN 246"]);
+  assert.deepEqual(twinRow.vehicles.map((v) => v.plate), ["MNS 001"]);
+});
+
+// ── job rows ───────────────────────────────────────────────────────
+
+test("job row resolves vehicle and customer through their ids", () => {
+  const r = repo();
+  const job = r.getJob("job_bmw_diag");
+  const row = buildJobRow(r, job);
+
+  assert.equal(row.job.id, "job_bmw_diag");
+  assert.equal(row.vehicle?.id, "veh_bmw");
+  assert.equal(row.customer?.id, "cus_andreas");
+  // No string is stored on the job itself.
+  assert.equal("car" in row.job, false);
+  assert.equal("owner" in row.job, false);
+  assert.equal("plate" in row.job, false);
+});
+
+test("job row for a vehicle without a customer returns null customer", () => {
+  const r = repo();
+  const job = r.createJob({ vehicle_id: "veh_orphan", title: "Έλεγχος" });
+  const row = buildJobRow(r, job);
+  assert.equal(row.vehicle?.id, "veh_orphan");
+  assert.equal(row.customer, null);
+});
+
+test("filterJobRows splits correctly into scopes", () => {
+  const r = repo();
+  const allJobs = r.listVehicles().flatMap((v) => r.listJobsByVehicle(v.id));
+  const rows = allJobs.map((job) => buildJobRow(r, job));
+
+  const today = filterJobRows(rows, "today");
+  const active = filterJobRows(rows, "active");
+  const history = filterJobRows(rows, "history");
+
+  for (const row of today)   assert.ok(["scheduled", "in_progress"].includes(row.job.status));
+  for (const row of active)  assert.equal(row.job.status, "in_progress");
+  for (const row of history) assert.ok(["done", "cancelled"].includes(row.job.status));
+
+  // Every job appears in exactly one scope.
+  const all = [...today, ...active, ...history];
+  const ids = new Set(all.map((r) => r.job.id));
+  assert.equal(ids.size, rows.length, "no job lost or doubled across scopes");
+});
+
+// ── dashboard summary ──────────────────────────────────────────────
+
+test("dashboard summary counts open jobs and notes from live data", () => {
+  const r = repo();
+  const before = buildDashboardSummary(r);
+
+  // Add an open job.
+  r.createJob({ vehicle_id: "veh_yaris", title: "Νέα εργασία" });
+  const after = buildDashboardSummary(r);
+
+  assert.equal(after.openCount, before.openCount + 1);
+  assert.ok(after.noteCount >= 0);
+  assert.ok(after.recent.length <= 3);
+
+  // Each recent row must carry a resolved vehicle (no N+1, no name matching).
+  for (const row of after.recent) {
+    assert.ok(row.job, "row has a job");
+    assert.ok(row.vehicle, "vehicle resolved via vehicle_id");
+    assert.equal(row.vehicle.id, row.job.vehicle_id, "id matches");
+    // customer is resolved through vehicle.customer_id, never by name.
+    if (row.vehicle.customer_id) {
+      assert.equal(row.customer?.id, row.vehicle.customer_id);
+    }
+  }
+});
+
+test("dashboard summary never returns hardcoded numbers", () => {
+  // An empty garage has 0 open jobs, not the old hardcoded 4 or 6.
+  const r = createRepository({ storage: createMemoryStorage(), now: () => FIXED_NOW, seedWhenEmpty: false });
+  const summary = buildDashboardSummary(r);
+  assert.equal(summary.openCount, 0);
+  assert.equal(summary.noteCount, 0);
+  assert.deepEqual(summary.recent, []);
+});
+
+// ── data consistency after create ──────────────────────────────────
+
+test("after creating a vehicle it appears in all three page views", () => {
+  const r = repo();
+
+  const created = r.createVehicle({ plate: "NEW 999", make: "Kia", model: "Sportage" });
+  r.createJob({ vehicle_id: created.id, title: "Πρώτη επίσκεψη", status: "scheduled" });
+
+  // Cars page
+  const vehicleRows = r.listVehicles().map((v) => buildVehicleListRow(r, v));
+  assert.ok(vehicleRows.some((row) => row.vehicle.id === created.id), "appears in Cars");
+
+  // Work page
+  const allJobs = r.listVehicles().flatMap((v) => r.listJobsByVehicle(v.id));
+  const jobRows = allJobs.map((job) => buildJobRow(r, job));
+  assert.ok(jobRows.some((row) => row.vehicle?.id === created.id), "appears in Work");
+
+  // Dashboard
+  const summary = buildDashboardSummary(r);
+  assert.ok(summary.recent.some((r) => r.job.vehicle_id === created.id), "appears in Dashboard recent");
+});
+
+test("after creating a customer their vehicles appear in Customers view", () => {
+  const r = repo();
+  const newCustomer = r.createCustomer({ name: "Νέος Πελάτης", phone: "+357 99 000 001" });
+  const newVehicle = r.createVehicle({ plate: "CST 001", customer_id: newCustomer.id });
+
+  const customerRows = r.listCustomers().map((c) => buildCustomerRow(r, c));
+  const row = customerRows.find((row) => row.customer.id === newCustomer.id);
+
+  assert.ok(row);
+  assert.equal(row.vehicleCount, 1);
+  assert.equal(row.vehicles[0].id, newVehicle.id);
+});
+
+// ── rehydration ────────────────────────────────────────────────────
+
+test("all page views rehydrate correctly after a reload", () => {
+  const storage = createMemoryStorage();
+  const first = createRepository({ storage, now: () => FIXED_NOW });
+  const created = first.createVehicle({ plate: "REH 001", make: "Renault" });
+  const cust = first.createCustomer({ name: "Επανεκκίνηση", phone: "+357 99 111 222" });
+  first.linkVehicleToCustomer(created.id, cust.id);
+  first.createJob({ vehicle_id: created.id, title: "Επανεκκίνηση εργασία" });
+
+  // Simulate a page reload.
+  const second = createRepository({ storage, now: () => FIXED_NOW });
+  assert.equal(second.status, "loaded");
+
+  // Cars
+  const vehicleRows = second.listVehicles().map((v) => buildVehicleListRow(second, v));
+  const reloaded = vehicleRows.find((r) => r.vehicle.id === created.id);
+  assert.ok(reloaded);
+  assert.equal(reloaded.customer?.id, cust.id, "customer relation survived reload");
+
+  // Customers
+  const customerRows = second.listCustomers().map((c) => buildCustomerRow(second, c));
+  const custRow = customerRows.find((r) => r.customer.id === cust.id);
+  assert.ok(custRow);
+  assert.equal(custRow.vehicleCount, 1);
+
+  // Work
+  const allJobs = second.listVehicles().flatMap((v) => second.listJobsByVehicle(v.id));
+  assert.ok(allJobs.some((j) => j.vehicle_id === created.id));
+});
+

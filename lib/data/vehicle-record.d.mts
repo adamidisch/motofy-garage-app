@@ -76,3 +76,14 @@ export declare function buildVehicleRecord(options: {
 }): VehicleRecord | null;
 export declare function buildVehicleListRow(repository: Repository, vehicle: Vehicle): VehicleListRow;
 export declare function matchesVehicleQuery(row: VehicleListRow, query: string): boolean;
+
+export interface JobRow { job: Job; vehicle: Vehicle | null; customer: Customer | null }
+export interface CustomerRow { customer: Customer; vehicles: Vehicle[]; vehicleCount: number }
+export interface DashboardSummary { openCount: number; noteCount: number; recent: JobRow[] }
+
+export declare function buildJobRow(repository: Repository, job: Job): JobRow;
+export declare function filterJobRows(rows: JobRow[], scope: "today" | "active" | "history"): JobRow[];
+export declare function buildCustomerRow(repository: Repository, customer: Customer): CustomerRow;
+export declare function matchesCustomerQuery(row: CustomerRow, query: string): boolean;
+export declare function buildDashboardSummary(repository: Repository): DashboardSummary;
+

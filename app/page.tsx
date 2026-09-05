@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { Bell, CalendarDays, Camera, CarFront, Check, ChevronRight, ClipboardCheck, ClipboardList, Clock3, Ellipsis, LayoutGrid, MoreHorizontal, Phone, Plus, ScanLine, Search, Settings2, Sparkles, StickyNote, UserRound, Wrench, X } from "lucide-react";
 
 import { createBrowserStorage, createRepository } from "../lib/data/repository.mjs";
-import { buildVehicleListRow, buildVehicleRecord, formatMileage, formatTodayLabel, matchesVehicleQuery } from "../lib/data/vehicle-record.mjs";
+import { buildCustomerRow, buildDashboardSummary, buildJobRow, buildVehicleListRow, buildVehicleRecord, filterJobRows, formatDateTime, formatMileage, formatRelative, formatTodayLabel, initials, matchesCustomerQuery, matchesVehicleQuery, vehicleTitle } from "../lib/data/vehicle-record.mjs";
 import type { Repository } from "../lib/data/repository.d.mts";
 import type { VehicleListRow } from "../lib/data/vehicle-record.d.mts";
+import type { Customer, Job, Vehicle } from "../lib/data/schema.d.mts";
 import VehicleRecord from "./vehicle-record";
 import CreationModal, { type CreationMode } from "./creation-flows";
 
@@ -32,18 +33,7 @@ const APP_VERSION = "0.2.2";
 const APP_RELEASE = "Phase 1";
 
 
-const jobs = [
-  { car: "Ford Fiesta", plate: "ΚΜΝ 246", title: "Αλλαγή λαδιών & φίλτρου", time: "14:30", status: "scheduled", owner: "Μιχάλης Σάββα" },
-  { car: "BMW 320i", plate: "ΚΜΡ 714", title: "Διάγνωση check engine", time: "Σε εξέλιξη", status: "active", owner: "Ανδρέας Χρίστου" },
-  { car: "Toyota Yaris", plate: "ΚΒΥ 328", title: "Ετήσιο service", time: "Ολοκληρώθηκε · 11:20", status: "done", owner: "Μάριος Παναγή" },
-];
 
-const customers = [
-  { initials: "ΜΠ", name: "Μάριος Παναγή", phone: "99 842 111", car: "Toyota Yaris · ΚΒΥ 328", count: 1, tone: "mint" },
-  { initials: "ΑΧ", name: "Ανδρέας Χρίστου", phone: "96 104 842", car: "BMW 320i · ΚΜΡ 714", count: 2, tone: "blue" },
-  { initials: "ΕΑ", name: "Ελένη Αντωνίου", phone: "99 201 670", car: "Mercedes A200 · ΜΡΑ 402", count: 1, tone: "peach" },
-  { initials: "ΜΣ", name: "Μιχάλης Σάββα", phone: "97 016 404", car: "Ford Fiesta · ΚΜΝ 246", count: 1, tone: "lilac" },
-];
 
 const el = { scanPrepare: "Προετοιμασία φωτογραφίας", scanPlate: "Ανάγνωση πινακίδας", scanVehicle: "Αναγνώριση οχήματος", scanVerify: "Επιβεβαίωση αποτελέσματος", scanPlateFallback: "Ο γρήγορος έλεγχος δεν ολοκληρώθηκε · συνεχίζει το AI", scanWaiting: "Το AI χρειάζεται λίγο περισσότερο χρόνο…", today: "ΣΗΜΕΡΑ · 2 ΣΕΠ", hello: "Καλησπέρα, Ανδρέα", subtitle: "Τι δουλειά έχουμε σήμερα;", scan: "Σάρωση αυτοκινήτου", scanTitle: "Σκάναρε το αυτοκίνητο", scanText: "Πινακίδα, πελάτης και ιστορικό — αμέσως μπροστά σου.", home: "Αρχική", cars: "Αυτοκίνητα", work: "Εργασίες", customers: "Πελάτες", add: "Προσθήκη", appointment: "Ραντεβού", notes: "Σημειώσεις", jobs: "Εργασίες", activity: "Πρόσφατη κίνηση", garage: "Συνεργείο", all: "Όλα", open: "Άνοιγμα", newCar: "Νέο αυτοκίνητο", newJob: "Νέα εργασία", newCustomer: "Νέος πελάτης", newNote: "Νέα σημείωση", settings: "Ρυθμίσεις", signout: "Έξοδος", camera: "Κάμερα πινακίδας", cameraText: "Βάλε την πινακίδα μέσα στο πλαίσιο και πάτα Αναγνώριση.", recognize: "Αναγνώριση", demo: "Χρήση demo εικόνας", cancel: "Ακύρωση", processing: "Διαβάζουμε την πινακίδα…", found: "Βρέθηκε όχημα", openRecord: "Άνοιγμα καρτέλας", retake: "Νέα λήψη", searchCar: "Αναζήτηση πινακίδας ή αυτοκινήτου", searchCustomer: "Αναζήτηση πελάτη", allCars: "Όλα τα αυτοκίνητα", activeJobs: "Εργασίες σήμερα", customerList: "Οι πελάτες σου", noResults: "Δεν βρέθηκε αποτέλεσμα", vehicle: "Καρτέλα οχήματος", owner: "Πελάτης", mileage: "Χιλιόμετρα", currentWork: "Τρέχουσα εργασία", note: "Σημείωση", appearance: "Εμφάνιση", theme: "Theme", language: "Γλώσσα", preferences: "Ρυθμίσεις συνεργείου", saved: "Αποθηκεύτηκε", progress: "Σε εξέλιξη", history: "Ιστορικό", vehicles: "οχήματα", overview: "Επισκόπηση", todayFilter: "Σήμερα", lastActivity: "Τελευταία κίνηση", noCustomer: "Χωρίς πελάτη", noCustomerHint: "Το όχημα δεν έχει συνδεθεί με πελάτη ακόμα.", noJobs: "Καμία εργασία", noJobsHint: "Δεν έχει καταγραφεί εργασία για αυτό το όχημα.", noOpenJob: "Καμία ανοιχτή εργασία", noOpenJobHint: "Τίποτα σε εξέλιξη αυτή τη στιγμή.", noHistory: "Χωρίς ιστορικό", noNotes: "Καμία σημείωση", noNotesHint: "Οι σημειώσεις του συνεργείου θα εμφανίζονται εδώ.", noPhone: "Χωρίς τηλέφωνο", otherVehicles: "Άλλα οχήματα", onlyVehicle: "Μοναδικό όχημα του πελάτη", unknownVehicle: "Όχημα χωρίς στοιχεία", photos: "φωτογραφίες", scanDiffers: "Η σάρωση διάβασε διαφορετικά στοιχεία", scanUnconfirmed: "Στοιχεία από σάρωση", keepExisting: "Η καρτέλα δεν άλλαξε. Η επιβεβαίωση γίνεται χειροκίνητα.", confirmLater: "Δεν έχουν επιβεβαιωθεί ακόμα.", fieldMake: "Μάρκα", fieldModel: "Μοντέλο", statusScheduled: "Προγραμματισμένη", statusInProgress: "Σε εξέλιξη", statusDone: "Ολοκληρώθηκε", statusCancelled: "Ακυρώθηκε", activityScan: "Σάρωση πινακίδας", activityCreated: "Δημιουργία καρτέλας", newVehiclePending: "Νέο όχημα — η δημιουργία έρχεται στο επόμενο βήμα", noVehicles: "Κανένα όχημα ακόμα", plate: "Πινακίδα", optional: "Προαιρετικό", scanPrefilled: "Συμπληρώθηκε από τη σάρωση", createRecord: "Δημιουργία καρτέλας", customerHint: "Τα στοιχεία αποθηκεύονται στο συνεργείο", customerName: "Όνομα πελάτη", phone: "Τηλέφωνο", createCustomer: "Δημιουργία πελάτη", service: "Service", inspection: "Έλεγχος", repair: "Επισκευή", other: "Άλλο", jobTitle: "Εργασία", createJob: "Δημιουργία εργασίας", notePlaceholder: "Γράψε μια σύντομη σημείωση…", createNote: "Αποθήκευση σημείωσης", vehicleCreated: "Η καρτέλα δημιουργήθηκε", customerCreated: "Ο πελάτης δημιουργήθηκε", jobCreated: "Η εργασία δημιουργήθηκε", noteCreated: "Η σημείωση αποθηκεύτηκε", creationError: "Δεν ολοκληρώθηκε η αποθήκευση", undo: "Αναίρεση", yourName: "Το όνομά σου", namePlaceholder: "Γράψε το όνομά σου" };
 const en = { scanPrepare: "Preparing photo", scanPlate: "Reading plate", scanVehicle: "Identifying vehicle", scanVerify: "Verifying result", scanPlateFallback: "Fast plate check did not complete · AI is continuing", scanWaiting: "The AI needs a little more time…", today: "TODAY · SEP 2", hello: "Good evening, Andreas", subtitle: "What needs moving today?", scan: "Scan vehicle", scanTitle: "Scan the car", scanText: "Plate, customer and history — ready when you are.", home: "Home", cars: "Cars", work: "Jobs", customers: "Customers", add: "Add", appointment: "Appointments", notes: "Notes", jobs: "Jobs", activity: "Recent activity", garage: "Garage", all: "All", open: "Open", newCar: "New car", newJob: "New job", newCustomer: "New customer", newNote: "New note", settings: "Settings", signout: "Sign out", camera: "Plate camera", cameraText: "Place the plate in frame then tap Recognise.", recognize: "Recognise", demo: "Use demo image", cancel: "Cancel", processing: "Reading the plate…", found: "Vehicle found", openRecord: "Open record", retake: "Retake", searchCar: "Search plate or vehicle", searchCustomer: "Search customer", allCars: "All vehicles", activeJobs: "Today’s jobs", customerList: "Your customers", noResults: "No results found", vehicle: "Vehicle record", owner: "Customer", mileage: "Mileage", currentWork: "Current job", note: "Note", appearance: "Appearance", theme: "Theme", language: "Language", preferences: "Garage settings", saved: "Saved", progress: "In progress", history: "History", vehicles: "vehicles", overview: "Overview", todayFilter: "Today", lastActivity: "Last activity", noCustomer: "No customer", noCustomerHint: "This vehicle is not linked to a customer yet.", noJobs: "No jobs", noJobsHint: "Nothing has been recorded for this vehicle.", noOpenJob: "No open job", noOpenJobHint: "Nothing in progress right now.", noHistory: "No history", noNotes: "No notes", noNotesHint: "Garage notes will appear here.", noPhone: "No phone number", otherVehicles: "Other vehicles", onlyVehicle: "The customer's only vehicle", unknownVehicle: "Vehicle without details", photos: "photos", scanDiffers: "The scan read different details", scanUnconfirmed: "Details from a scan", keepExisting: "The record is unchanged. Confirming is a manual step.", confirmLater: "Not confirmed yet.", fieldMake: "Make", fieldModel: "Model", statusScheduled: "Scheduled", statusInProgress: "In progress", statusDone: "Completed", statusCancelled: "Cancelled", activityScan: "Plate scan", activityCreated: "Record created", newVehiclePending: "New vehicle — creation arrives in the next step", noVehicles: "No vehicles yet", plate: "Plate", optional: "Optional", scanPrefilled: "Filled from the scan", createRecord: "Create vehicle record", customerHint: "The details are saved to this garage", customerName: "Customer name", phone: "Phone", createCustomer: "Create customer", service: "Service", inspection: "Inspection", repair: "Repair", other: "Other", jobTitle: "Job", createJob: "Create job", notePlaceholder: "Write a short note…", createNote: "Save note", vehicleCreated: "Vehicle record created", customerCreated: "Customer created", jobCreated: "Job created", noteCreated: "Note saved", creationError: "Could not save this yet", undo: "Undo", yourName: "Your name", namePlaceholder: "Enter your name" };
@@ -125,6 +115,26 @@ export default function Home() {
   const vehicleRows: VehicleListRow[] = repository
     ? repository.listVehicles().map((vehicle) => buildVehicleListRow(repository, vehicle))
     : [];
+
+  type JobRow = { job: Job; vehicle: Vehicle | null; customer: Customer | null };
+  type CustomerRow = { customer: Customer; vehicles: Vehicle[]; vehicleCount: number };
+
+  const jobRows: JobRow[] = repository
+    ? repository.listOpenJobs().concat(
+        // pull history too so the history filter tab has data
+        repository.listVehicles().flatMap((v) =>
+          repository.listJobsByVehicle(v.id, { status: "done" })
+            .concat(repository.listJobsByVehicle(v.id, { status: "cancelled" }))
+        )
+      ).filter((job, index, arr) => arr.findIndex((j) => j.id === job.id) === index) // dedupe
+       .map((job) => buildJobRow(repository, job))
+    : [];
+
+  const customerRows: CustomerRow[] = repository
+    ? repository.listCustomers().map((customer) => buildCustomerRow(repository, customer))
+    : [];
+
+  const dashSummary = repository ? buildDashboardSummary(repository) : null;
   const openRecord = repository && selectedVehicleId
     ? buildVehicleRecord({ repository, vehicleId: selectedVehicleId, scan: scanForRecord })
     : null;
@@ -338,11 +348,11 @@ export default function Home() {
         {menuOpen && <div className="action-popover menu-popover"><button onClick={() => selectView("settings")}><Settings2 size={16}/>{t.settings}</button><button onClick={() => notice(t.signout)}><X size={16}/>{t.signout}</button></div>}
       </header>
       <div className="content">
-        {view === "home" && <Dashboard t={t} lang={lang} userName={userName} todayLabel={formatTodayLabel(new Date(), lang)} startScanner={startScanner} selectView={selectView} notice={notice}/>}
+        {view === "home" && <Dashboard t={t} lang={lang} userName={userName} todayLabel={formatTodayLabel(new Date(), lang)} summary={dashSummary} startScanner={startScanner} selectView={selectView} notice={notice}/>} 
         {view === "cars" && <Cars t={t} lang={lang} query={query} setQuery={setQuery} rows={vehicleRows} selectVehicle={setSelectedVehicleId}/>}
-        {view === "work" && <Work t={t} notice={notice}/>}
-        {view === "customers" && <Customers t={t} query={query} setQuery={setQuery} notice={notice}/>}
-        {view === "settings" && <Settings t={t} theme={theme} chooseTheme={chooseTheme} lang={lang} switchLanguage={switchLanguage} userName={userName} saveUserName={saveUserName}/>}
+        {view === "work" && <Work t={t} lang={lang} jobRows={jobRows} selectVehicle={setSelectedVehicleId} notice={notice}/>}
+        {view === "customers" && <Customers t={t} query={query} setQuery={setQuery} customerRows={customerRows} selectVehicle={setSelectedVehicleId} notice={notice}/>}
+        {view === "settings" && <Settings t={t} theme={theme} chooseTheme={chooseTheme} lang={lang} switchLanguage={switchLanguage} userName={userName} saveUserName={saveUserName}/>} 
       </div>
       <nav className="bottom-nav" aria-label="Main navigation">{nav.map(([id, Icon, label]) => <button key={id} className={view === id ? "selected" : ""} onClick={() => selectView(id)}><Icon size={20}/><span>{label}</span></button>)}<button className="nav-add" onClick={() => { setAddOpen(!addOpen); setMenuOpen(false); }}><span><Plus size={22}/></span><small>{t.add}</small></button></nav>
     </section>
@@ -357,12 +367,12 @@ export default function Home() {
   </main>;
 }
 
-function Dashboard({ t, lang, userName, todayLabel, startScanner, selectView, notice }: { t: typeof el; lang: "el" | "en"; userName: string; todayLabel: string; startScanner: () => void; selectView: (view: View) => void; notice: (message: string) => void }) {
+function Dashboard({ t, lang, userName, todayLabel, summary, startScanner, selectView, notice }: { t: typeof el; lang: "el" | "en"; userName: string; todayLabel: string; summary: ReturnType<typeof buildDashboardSummary> | null; startScanner: () => void; selectView: (view: View) => void; notice: (message: string) => void }) {
   return <><section className="intro-row"><div><p className="eyebrow">{todayLabel}</p><h1>{greeting(lang, userName)}</h1><p className="intro-copy">{t.subtitle}</p></div><button className="notification"><Bell size={18}/><i/></button></section>
     <section className="scan-card"><div className="scan-orb"><ScanLine size={30}/></div><div className="scan-copy"><span className="pill"><Sparkles size={13}/> AI READY</span><h2>{t.scanTitle}</h2><p>{t.scanText}</p></div><button className="scan-button" onClick={startScanner}>{t.scan}<span><Camera size={16}/></span></button></section>
-    <section className="metrics"><button onClick={() => selectView("work")}><span className="metric-icon indigo"><CalendarDays size={18}/></span><div><strong>4</strong><p>{t.appointment}</p></div></button><button onClick={() => notice(t.note)}><span className="metric-icon aqua"><StickyNote size={18}/></span><div><strong>2</strong><p>{t.notes}</p></div></button><button onClick={() => selectView("work")}><span className="metric-icon gold"><ClipboardCheck size={18}/></span><div><strong>6</strong><p>{t.jobs}</p></div></button></section>
+    <section className="metrics"><button onClick={() => selectView("work")}><span className="metric-icon indigo"><CalendarDays size={18}/></span><div><strong>{summary?.openCount ?? "—"}</strong><p>{t.activeJobs}</p></div></button><button onClick={() => notice(t.note)}><span className="metric-icon aqua"><StickyNote size={18}/></span><div><strong>{summary?.noteCount ?? "—"}</strong><p>{t.notes}</p></div></button><button onClick={() => selectView("work")}><span className="metric-icon gold"><ClipboardCheck size={18}/></span><div><strong>{summary?.openCount ?? "—"}</strong><p>{t.jobs}</p></div></button></section>
     <section className="section-heading"><div><p className="eyebrow">{t.activity}</p><h2>{t.garage}</h2></div><button onClick={() => selectView("work")}>{t.all}<ChevronRight size={15}/></button></section>
-    <section className="activity-list">{jobs.map((job, index) => <button className="activity" key={job.car} onClick={() => selectView("work")}><span className={"activity-icon " + (index === 0 ? "lilac" : index === 1 ? "blue" : "mint")}>{index === 1 ? <Wrench size={18}/> : index === 2 ? <Check size={18}/> : <Clock3 size={18}/>}</span><span className="activity-text"><strong>{job.car}</strong><small>{job.title} · {job.time}</small></span><Ellipsis size={18}/></button>)}</section>
+    <section className="activity-list">{(summary?.recent ?? []).map(({ job, vehicle }, index) => <button className="activity" key={job.id} onClick={() => selectView("work")}><span className={"activity-icon " + (index === 0 ? "lilac" : index === 1 ? "blue" : "mint")}>{job.status === "in_progress" ? <Wrench size={18}/> : job.status === "done" ? <Check size={18}/> : <Clock3 size={18}/>}</span><span className="activity-text"><strong>{vehicle ? ([vehicle.make, vehicle.model].filter(Boolean).join(" ") || vehicle.plate) : job.title}</strong><small>{vehicle ? vehicle.plate + " · " : ""}{formatRelative(job.updated_at ?? job.created_at)}</small></span><Ellipsis size={18}/></button>)}</section>
   </>;
 }
 
@@ -382,9 +392,10 @@ function Work({ t, notice }: { t: typeof el; notice: (message: string) => void }
   return <><Intro eyebrow={t.activeJobs} title={t.work} action={<button className="compact-add" onClick={() => notice(t.newJob)}><Plus size={16}/>{t.add}</button>}/><div className="filter-tabs"><button className={scope === "today" ? "active" : ""} onClick={() => setScope("today")}>{t.todayFilter}</button><button className={scope === "active" ? "active" : ""} onClick={() => setScope("active")}>{t.progress}</button><button className={scope === "history" ? "active" : ""} onClick={() => setScope("history")}>{t.history}</button></div><section className="job-list">{visibleJobs.map((job) => <article className="job-card" key={job.car}><div className="job-top"><span className={"status-dot " + job.status}/><strong>{job.car}<small>{job.plate} · {job.owner}</small></strong><button aria-label={job.car + " options"} onClick={() => notice(job.car)}><Ellipsis size={18}/></button></div><p>{job.title}</p><footer><span className={"status-label " + job.status}>{job.time}</span><button onClick={() => notice(t.open)}>{t.open}<ChevronRight size={15}/></button></footer></article>)}</section></>;
 }
 
-function Customers({ t, query, setQuery, notice }: { t: typeof el; query: string; setQuery: (value: string) => void; notice: (message: string) => void }) {
-  const filtered = customers.filter((customer) => (customer.name + customer.car).toLowerCase().includes(query.toLowerCase()));
-  return <><Intro eyebrow={t.customerList} title={t.customers} action={<button className="compact-add" onClick={() => notice(t.newCustomer)}><Plus size={16}/>{t.add}</button>}/><SearchBox value={query} setValue={setQuery} placeholder={t.searchCustomer}/><section className="customer-list">{filtered.map((customer) => <article className="customer-row" key={customer.name}><span className={"avatar " + customer.tone}>{customer.initials}</span><div><strong>{customer.name}</strong><a href={"tel:" + customer.phone.replaceAll(" ", "")}><Phone size={13}/>{customer.phone}</a><small><CarFront size={13}/>{customer.car}</small></div><span className="car-count">{customer.count}<small>{t.vehicles}</small></span></article>)}{!filtered.length && <Empty text={t.noResults}/>}</section></>;
+function Customers({ t, query, setQuery, customerRows, selectVehicle, notice }: { t: typeof el; query: string; setQuery: (value: string) => void; customerRows: Array<{ customer: any; vehicles: any[]; vehicleCount: number }>; selectVehicle: (id: string) => void; notice: (message: string) => void }) {
+  const TONES = ["mint", "blue", "peach", "lilac"];
+  const filtered = customerRows.filter((row) => matchesCustomerQuery(row, query));
+  return <><Intro eyebrow={t.customerList} title={t.customers} action={<button className="compact-add" onClick={() => notice(t.newCustomer)}><Plus size={16}/>{t.add}</button>}/><SearchBox value={query} setValue={setQuery} placeholder={t.searchCustomer}/><section className="customer-list">{filtered.map((row, idx) => <article className="customer-row" key={row.customer.id}><span className={"avatar " + TONES[idx % TONES.length]}>{initials(row.customer.name)}</span><div><strong>{row.customer.name}</strong>{row.customer.phone ? <a href={"tel:" + row.customer.phone.replaceAll(" ", "")}><Phone size={13}/>{row.customer.phone}</a> : <small>{t.noPhone}</small>}<small><CarFront size={13}/>{row.vehicles.length ? row.vehicles.map((v: any) => v.plate).join(", ") : t.noVehicles}</small></div><span className="car-count" onClick={() => row.vehicles[0] && selectVehicle(row.vehicles[0].id)} style={{cursor: row.vehicles.length ? "pointer" : "default"}}>{row.vehicleCount}<small>{t.vehicles}</small></span></article>)}{!filtered.length && <Empty text={customerRows.length ? t.noResults : t.noVehicles}/>}</section></>;
 }
 
 function Settings({ t, theme, chooseTheme, lang, switchLanguage, userName, saveUserName }: { t: typeof el; theme: string; chooseTheme: (theme: string) => void; lang: string; switchLanguage: () => void; userName: string; saveUserName: (name: string) => void }) {
@@ -435,3 +446,4 @@ function ProcessingState({ t, progress }: { t: typeof el; progress: ScanProgress
     </div>
   </div>;
 }
+

@@ -96,3 +96,4 @@ button { font:inherit; border:0; cursor:pointer; }
 .quick-choices button.selected { color:#405db8; border-color:#aab9eb; background:#e6eaff; }
 @media (max-width:380px) { .creation-two { grid-template-columns:1fr; } }
 @media (max-width:380px) { .record-tabs button { font-size:10px; } .record-grid { grid-template-columns:1fr; } }
+
