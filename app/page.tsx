@@ -338,7 +338,7 @@ export default function Home() {
         {menuOpen && <div className="action-popover menu-popover"><button onClick={() => selectView("settings")}><Settings2 size={16}/>{t.settings}</button><button onClick={() => notice(t.signout)}><X size={16}/>{t.signout}</button></div>}
       </header>
       <div className="content">
-        {view === "home" && <Dashboard t={t} lang={lang} todayLabel={formatTodayLabel(new Date(), lang)} startScanner={startScanner} selectView={selectView} notice={notice}/>}
+        {view === "home" && <Dashboard t={t} lang={lang} userName={userName} todayLabel={formatTodayLabel(new Date(), lang)} startScanner={startScanner} selectView={selectView} notice={notice}/>}
         {view === "cars" && <Cars t={t} lang={lang} query={query} setQuery={setQuery} rows={vehicleRows} selectVehicle={setSelectedVehicleId}/>}
         {view === "work" && <Work t={t} notice={notice}/>}
         {view === "customers" && <Customers t={t} query={query} setQuery={setQuery} notice={notice}/>}
@@ -357,7 +357,7 @@ export default function Home() {
   </main>;
 }
 
-function Dashboard({ t, lang, todayLabel, startScanner, selectView, notice }: { t: typeof el; lang: "el" | "en"; todayLabel: string; startScanner: () => void; selectView: (view: View) => void; notice: (message: string) => void }) {
+function Dashboard({ t, lang, userName, todayLabel, startScanner, selectView, notice }: { t: typeof el; lang: "el" | "en"; userName: string; todayLabel: string; startScanner: () => void; selectView: (view: View) => void; notice: (message: string) => void }) {
   return <><section className="intro-row"><div><p className="eyebrow">{todayLabel}</p><h1>{greeting(lang, userName)}</h1><p className="intro-copy">{t.subtitle}</p></div><button className="notification"><Bell size={18}/><i/></button></section>
     <section className="scan-card"><div className="scan-orb"><ScanLine size={30}/></div><div className="scan-copy"><span className="pill"><Sparkles size={13}/> AI READY</span><h2>{t.scanTitle}</h2><p>{t.scanText}</p></div><button className="scan-button" onClick={startScanner}>{t.scan}<span><Camera size={16}/></span></button></section>
     <section className="metrics"><button onClick={() => selectView("work")}><span className="metric-icon indigo"><CalendarDays size={18}/></span><div><strong>4</strong><p>{t.appointment}</p></div></button><button onClick={() => notice(t.note)}><span className="metric-icon aqua"><StickyNote size={18}/></span><div><strong>2</strong><p>{t.notes}</p></div></button><button onClick={() => selectView("work")}><span className="metric-icon gold"><ClipboardCheck size={18}/></span><div><strong>6</strong><p>{t.jobs}</p></div></button></section>
