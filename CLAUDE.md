@@ -191,3 +191,46 @@ Typing is a fallback, not the primary path. When adding a feature, the question
 is not "where does the form go" but "what can be inferred, and what single tap
 confirms it". Preserve the existing UI and interaction design; do not rewrite
 working frontend code without cause.
+
+### ADR-008 — The demo repository comes before the Supabase integration
+
+Decided 2026-09-05. Supersedes the phase ordering implied by ADR-002.
+
+The UI is built against `lib/data/` — a garage-scoped repository over a
+localStorage-backed dataset — **before** Supabase is wired in. Supabase remains
+the decision; only the order changed.
+
+The reason is that the data layer is the schema decision, not scaffolding. The
+previous demo arrays held `customer: "Μάριος Παναγή"` and `work: "Service σε 5
+ημέρες"` as strings, `km` as `"86.420 km"`, and no `garage_id` anywhere. A
+customer screen built on that cannot list a customer's vehicles without matching
+names, and every screen would have been rewritten the day real tables arrived.
+
+So `lib/data/schema.mjs` defines the final relational shape now: `garages`,
+`customers`, `vehicles`, `jobs`, `notes`, each with `id`, `garage_id`,
+`created_at`, `updated_at`; `vehicle.customer_id` nullable; `job.vehicle_id` and
+`note.vehicle_id` required; `mileage_km` a number; plates unique per garage on a
+folded key. The Postgres column types are written into the header comment of
+that file so the migration can be transcribed rather than redesigned.
+
+Consequences a future agent should not undo:
+
+- **Every read and write is scoped by `garage_id`**, even though the demo has one
+  garage. This is what RLS will enforce (ADR-002). An unscoped repository would
+  mean discovering every missing filter on the day the policies go live.
+- **`jobs` and `notes` do not carry `customer_id`.** The owner is reached through
+  the vehicle. Duplicating it lets the two disagree.
+- **The confirmed record wins over a scan.** When a plate is already known,
+  `applyScanResult` leaves `make` and `model` untouched, writes the reading to
+  the `scan_*` columns and returns the disagreement as `conflicts` for the UI to
+  offer. An AI guess never silently rewrites what a mechanic entered.
+- **Undo lives in the repository**, not in a component, so it survives navigation
+  and covers every write path.
+- **Callers get deep copies.** A component cannot mutate stored state by accident.
+
+Supabase replaces the implementation of this interface. It must not require
+changing the interface, and if it appears to, the schema is wrong and should be
+fixed here first.
+
+Build order: data layer (done) → read-only vehicle record → creation flows →
+Supabase.
