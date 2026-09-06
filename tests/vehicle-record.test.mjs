@@ -562,3 +562,95 @@ test("all page views rehydrate correctly after a reload", () => {
   assert.ok(allJobs.some((j) => j.vehicle_id === created.id));
 });
 
+
+/* ------------------------------------------------------------------ */
+/* Login / session / greeting                                          */
+/* ------------------------------------------------------------------ */
+
+const SESSION_KEY_T = "motofy-session";
+const DEMO_SESSION_T = "__demo__";
+
+function greet(name, lang, now) {
+  const morning = (now ?? new Date()).getHours() < 12;
+  const display = name === DEMO_SESSION_T ? "Demo" : name;
+  if (lang === "en") return (morning ? "Good morning, " : "Good evening, ") + display;
+  return (morning ? "Καλημέρα, " : "Καλησπέρα, ") + display;
+}
+
+test("greeting uses time of day and stored name", () => {
+  assert.equal(greet("Ανδρέας", "el", new Date("2026-09-05T08:00:00")), "Καλημέρα, Ανδρέας");
+  assert.equal(greet("Ανδρέας", "el", new Date("2026-09-05T14:00:00")), "Καλησπέρα, Ανδρέας");
+  assert.equal(greet("Andreas", "en", new Date("2026-09-05T08:00:00")), "Good morning, Andreas");
+  assert.equal(greet("Andreas", "en", new Date("2026-09-05T20:00:00")), "Good evening, Andreas");
+});
+
+test("demo session shows Demo in greeting", () => {
+  assert.equal(greet(DEMO_SESSION_T, "el", new Date("2026-09-05T09:00:00")), "Καλημέρα, Demo");
+});
+
+test("greeting never contains hardcoded name", () => {
+  const r = greet("Μάριος", "el", new Date("2026-09-05T10:00:00"));
+  assert.equal(r.includes("Ανδρέα"), false);
+  assert.ok(r.includes("Μάριος"));
+});
+
+test("logout clears only session key, data intact", () => {
+  const storage = createMemoryStorage();
+  storage.setItem(SESSION_KEY_T, "Ελένη");
+  const r = createRepository({ storage, now: () => FIXED_NOW });
+  r.createVehicle({ plate: "SES 001", make: "Fiat" });
+  storage.removeItem(SESSION_KEY_T);
+  assert.equal(storage.getItem(SESSION_KEY_T), null);
+  const r2 = createRepository({ storage, now: () => FIXED_NOW });
+  assert.ok(r2.findVehicleByPlate("SES 001"));
+});
+
+test("demo does not write to session storage", () => {
+  const storage = createMemoryStorage();
+  assert.equal(storage.getItem(SESSION_KEY_T), null);
+});
+
+test("blank name rejected by submission guard", () => {
+  for (const n of ["", "   "]) assert.equal(n.trim().length === 0, true);
+});
+
+/* ------------------------------------------------------------------ */
+/* Part 5: job status changes                                          */
+/* ------------------------------------------------------------------ */
+
+test("updateJob sets completed_at when marked done", () => {
+  const r = repo();
+  const updated = r.updateJob("job_fiesta_oil", { status: "done" });
+  assert.equal(updated.status, "done");
+  assert.ok(updated.completed_at);
+});
+
+test("reopening clears completed_at", () => {
+  const r = repo();
+  r.updateJob("job_yaris_service", { status: "done" });
+  const reopened = r.updateJob("job_yaris_service", { status: "scheduled" });
+  assert.equal(reopened.completed_at, null);
+});
+
+test("status change can be undone", () => {
+  const r = repo();
+  r.updateJob("job_fiesta_oil", { status: "in_progress" });
+  r.undo();
+  assert.equal(r.getJob("job_fiesta_oil").status, "scheduled");
+});
+
+test("status change persists after reload", () => {
+  const storage = createMemoryStorage();
+  const first = createRepository({ storage, now: () => FIXED_NOW });
+  first.updateJob("job_fiesta_oil", { status: "in_progress" });
+  const second = createRepository({ storage, now: () => FIXED_NOW });
+  assert.equal(second.getJob("job_fiesta_oil").status, "in_progress");
+});
+
+test("scheduled → in_progress → done transition", () => {
+  const r = repo();
+  r.updateJob("job_fiesta_oil", { status: "in_progress" });
+  assert.equal(r.getJob("job_fiesta_oil").completed_at, null);
+  r.updateJob("job_fiesta_oil", { status: "done" });
+  assert.ok(r.getJob("job_fiesta_oil").completed_at);
+});

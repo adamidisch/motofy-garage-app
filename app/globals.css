@@ -97,3 +97,12 @@ button { font:inherit; border:0; cursor:pointer; }
 @media (max-width:380px) { .creation-two { grid-template-columns:1fr; } }
 @media (max-width:380px) { .record-tabs button { font-size:10px; } .record-grid { grid-template-columns:1fr; } }
 
+.login-screen{min-height:100dvh;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#e8f1fc 0%,#dce8f8 100%);padding:24px}
+.login-card{width:100%;max-width:360px;padding:36px 28px;border-radius:28px;background:white;box-shadow:0 16px 48px rgba(40,80,160,.12);display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center}
+.login-brand{display:flex;align-items:center;gap:8px}.login-brand .brand-name{font-size:22px;font-weight:700;letter-spacing:-.5px;color:#2c4874}
+.login-card h1{font-size:26px;font-weight:800;color:#1e3a6e;letter-spacing:-.5px;margin:0}
+.login-card p{color:#7085a6;font-size:14px;margin:0}
+.login-input{width:100%;box-sizing:border-box;padding:13px 16px;border:1.5px solid #c8d8f0;border-radius:14px;font-size:15px;color:#2c4874;outline:none;text-align:center}.login-input:focus{border-color:#4e7cd6;box-shadow:0 0 0 3px rgba(78,124,214,.15)}
+.login-btn{width:100%;padding:14px;border-radius:14px;background:linear-gradient(135deg,#4e7cd6,#6a5acd);color:white;font-size:15px;font-weight:750;cursor:pointer}.login-btn:disabled{opacity:.45;cursor:default}
+.login-demo-btn{width:100%;padding:11px;border-radius:14px;background:transparent;border:1.5px solid #c8d8f0;color:#5f79ab;font-size:13px;font-weight:650;cursor:pointer}
+.job-status-btn,.job-reopen-btn{padding:5px 10px;border-radius:9px;background:#e8f0fa;color:#3f69b5;font-size:11px;font-weight:750;flex:0 0 auto}

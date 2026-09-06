@@ -21,12 +21,14 @@ export default function VehicleRecord({
   lang,
   close,
   openVehicle,
+  onJobUpdate,
 }: {
   record: VehicleRecordModel;
   t: Copy;
   lang: "el" | "en";
   close: () => void;
   openVehicle: (vehicleId: string) => void;
+  onJobUpdate: (jobId: string, status: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
   const { vehicle, display, customer, otherVehicles, jobs, notes, lastActivity, scanSuggestion, empty } = record;
@@ -88,7 +90,7 @@ export default function VehicleRecord({
             />
           )}
 
-          {tab === "jobs" && <Jobs t={t} lang={lang} jobs={jobs} empty={empty}/>}
+          {tab === "jobs" && <Jobs t={t} lang={lang} jobs={jobs} empty={empty} onJobUpdate={onJobUpdate}/>}
 
           {tab === "notes" && <Notes t={t} lang={lang} notes={notes} empty={empty}/>}
 
@@ -237,7 +239,9 @@ function ScanSuggestion({ t, lang, suggestion }: { t: Copy; lang: "el" | "en"; s
 
 /* ------------------------------------------------------------------ */
 
-function Jobs({ t, lang, jobs, empty }: { t: Copy; lang: "el" | "en"; jobs: VehicleRecordModel["jobs"]; empty: VehicleRecordModel["empty"] }) {
+function Jobs({ t, lang, jobs, empty, onJobUpdate }: { t: Copy; lang: "el" | "en"; jobs: VehicleRecordModel["jobs"]; empty: VehicleRecordModel["empty"]; onJobUpdate: (jobId: string, status: string) => void }) {
+  function nextStatus(s: string) { return s === "scheduled" ? "in_progress" : s === "in_progress" ? "done" : "scheduled"; }
+  function nextLabel(s: string) { return s === "scheduled" ? t.markInProgress : s === "in_progress" ? t.markDone : t.reopen; }
   if (empty.jobs) {
     return <EmptyPanel icon={<Wrench size={20}/>} title={t.noJobs} hint={t.noJobsHint}/>;
   }
@@ -258,6 +262,7 @@ function Jobs({ t, lang, jobs, empty }: { t: Copy; lang: "el" | "en"; jobs: Vehi
                 </small>
                 {job.description && <p>{job.description}</p>}
               </div>
+              <button className="job-status-btn" onClick={() => onJobUpdate(job.id, nextStatus(job.status))}>{nextLabel(job.status)}</button>
             </article>
           ))
         ) : (
@@ -279,6 +284,7 @@ function Jobs({ t, lang, jobs, empty }: { t: Copy; lang: "el" | "en"; jobs: Vehi
                     {job.mileage_km !== null ? ` · ${formatMileage(job.mileage_km, lang)}` : ""}
                   </small>
                 </div>
+                {job.status === "done" && <button className="job-reopen-btn" onClick={() => onJobUpdate(job.id, "scheduled")}>{t.reopen}</button>}
               </li>
             ))}
           </ol>
