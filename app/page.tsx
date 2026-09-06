@@ -40,7 +40,7 @@ function greet(name: string, lang: "el" | "en", now = new Date()): string {
   return (morning ? "Καλημέρα, " : "Καλησπέρα, ") + display;
 }
 
-const APP_VERSION = "2.1.4";
+const APP_VERSION = "2.1.8";
 const APP_RELEASE = "Phase 1";
 
 
