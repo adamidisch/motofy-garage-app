@@ -39,8 +39,8 @@ function greet(name: string, lang: "el" | "en", now = new Date()): string {
   return (morning ? "Καλημέρα, " : "Καλησπέρα, ") + display;
 }
 
-const APP_VERSION = "0.2.3";
-const APP_RELEASE = "Phase 1";
+const APP_VERSION = "1.1.4";
+const APP_RELEASE = "Production";
 
 
 
@@ -387,15 +387,15 @@ function AppBody({ session, onLogout }: { session: string; onLogout: () => void 
     <section className="phone-canvas">
       <header className="topbar" ref={headerRef}>
         <button className="brand" aria-label="Motofy home" onClick={() => selectView("home")}><span className="brand-mark"><img src="/icon.svg" alt="" width={28} height={28}/></span><span>motofy</span></button>
-        <div className="top-actions"><span className="version-badge" aria-label={`Version ${APP_VERSION}`}>v{APP_VERSION}</span><button className="language" onClick={switchLanguage}>ΕΛ <span>/</span> EN</button><button className="icon-button" onClick={() => { setAddOpen(!addOpen); setMenuOpen(false); }} aria-label={t.add}><Plus size={20}/></button><button className="icon-button" onClick={() => { setMenuOpen(!menuOpen); setAddOpen(false); }} aria-label="Menu"><MoreHorizontal size={21}/></button></div>
+        <div className="top-actions"><button className="language" onClick={switchLanguage}>ΕΛ <span>/</span> EN</button><button className="icon-button" onClick={() => { setAddOpen(!addOpen); setMenuOpen(false); }} aria-label={t.add}><Plus size={20}/></button><button className="icon-button" onClick={() => { setMenuOpen(!menuOpen); setAddOpen(false); }} aria-label="Menu"><MoreHorizontal size={21}/></button></div>
         {addOpen && <div className="action-popover add-popover"><button onClick={() => openCreation("vehicle")}><CarFront size={16}/>{t.newCar}</button><button onClick={() => openCreation("job")}><Wrench size={16}/>{t.newJob}</button><button onClick={() => openCreation("customer")}><UserRound size={16}/>{t.newCustomer}</button><button onClick={() => openCreation("note")}><StickyNote size={16}/>{t.newNote}</button></div>}
         {menuOpen && <div className="action-popover menu-popover"><button onClick={() => selectView("settings")}><Settings2 size={16}/>{t.settings}</button><button onClick={() => { setMenuOpen(false); onLogout(); }}><X size={16}/>{t.signout}</button></div>}
       </header>
       <div className="content">
         {view === "home" && <Dashboard t={t} lang={lang} session={session} todayLabel={formatTodayLabel(new Date(), lang)} summary={dashSummary} startScanner={startScanner} selectView={selectView} notice={notice}/>}
         {view === "cars" && <Cars t={t} lang={lang} query={query} setQuery={setQuery} rows={vehicleRows} selectVehicle={setSelectedVehicleId}/>}
-        {view === "work" && <Work t={t} lang={lang} jobRows={jobRows} selectVehicle={setSelectedVehicleId} notice={notice} openCreation={openCreation} onJobUpdate={(jobId, status) => { if (!repository) return; repository.updateJob(jobId, { status }); const undo = repository.peekUndo(); refreshRepository(); notice(t.jobUpdated, undo ? () => { repository.undo(); refreshRepository(); } : undefined); }}/>}
-        {view === "customers" && <Customers t={t} query={query} setQuery={setQuery} customerRows={customerRows} selectVehicle={setSelectedVehicleId} notice={notice} openCreation={openCreation}/>}
+        {view === "work" && <Work t={t} lang={lang} jobRows={jobRows} selectVehicle={setSelectedVehicleId} notice={notice} onJobUpdate={(jobId, status) => { if (!repository) return; repository.updateJob(jobId, { status }); const undo = repository.peekUndo(); refreshRepository(); notice(t.jobUpdated, undo ? () => { repository.undo(); refreshRepository(); } : undefined); }}/>}
+        {view === "customers" && <Customers t={t} query={query} setQuery={setQuery} customerRows={customerRows} selectVehicle={setSelectedVehicleId} notice={notice}/>}
         {view === "settings" && <Settings t={t} theme={theme} chooseTheme={chooseTheme} lang={lang} switchLanguage={switchLanguage} userName={userName} saveUserName={saveUserName}/>} 
       </div>
       <nav className="bottom-nav" aria-label="Main navigation">{nav.map(([id, Icon, label]) => <button key={id} className={view === id ? "selected" : ""} onClick={() => selectView(id)}><Icon size={20}/><span>{label}</span></button>)}<button className="nav-add" onClick={() => { setAddOpen(!addOpen); setMenuOpen(false); }}><span><Plus size={22}/></span><small>{t.add}</small></button></nav>
@@ -430,7 +430,7 @@ function Cars({ t, lang, query, setQuery, rows, selectVehicle }: { t: typeof el;
   return <><Intro eyebrow={t.allCars} title={t.cars} action={<span className="page-count">{rows.length}</span>}/><SearchBox value={query} setValue={setQuery} placeholder={t.searchCar}/><section className="vehicle-list">{filtered.map((row, index) => <button className="vehicle-row" key={row.vehicle.id} onClick={() => selectVehicle(row.vehicle.id)}><span className={"vehicle-badge " + tones[index % tones.length]}><CarFront size={19}/></span><span className="vehicle-text"><strong>{row.title ?? t.unknownVehicle}<small>{[row.subtitle, row.vehicle.plate].filter(Boolean).join(" · ")}</small></strong><small>{[row.customer?.name ?? t.noCustomer, row.vehicle.mileage_km !== null ? formatMileage(row.vehicle.mileage_km, lang) : null].filter(Boolean).join(" · ")}</small><em>{row.currentJob?.title ?? t.noOpenJob}</em></span><ChevronRight size={18}/></button>)}{!filtered.length && <Empty text={rows.length ? t.noResults : t.noVehicles}/>}</section></>;
 }
 
-function Work({ t, lang, jobRows, selectVehicle, notice, openCreation, onJobUpdate }: { t: typeof el; lang: "el" | "en"; jobRows: Array<{ job: Job; vehicle: Vehicle | null; customer: Customer | null }>; selectVehicle: (id: string) => void; notice: (message: string) => void; openCreation: (mode: CreationMode) => void; onJobUpdate: (jobId: string, status: string) => void }) {
+function Work({ t, lang, jobRows, selectVehicle, notice, onJobUpdate }: { t: typeof el; lang: "el" | "en"; jobRows: Array<{ job: Job; vehicle: Vehicle | null; customer: Customer | null }>; selectVehicle: (id: string) => void; notice: (message: string) => void; onJobUpdate: (jobId: string, status: string) => void }) {
   function nextStatus(s: string) { return s === "scheduled" ? "in_progress" : s === "in_progress" ? "done" : "scheduled"; }
   function nextLabel(s: string) { return s === "scheduled" ? t.markInProgress : s === "in_progress" ? t.markDone : t.reopen; }
   const [scope, setScope] = useState<"today" | "active" | "history">("today");
@@ -439,7 +439,7 @@ function Work({ t, lang, jobRows, selectVehicle, notice, openCreation, onJobUpda
   return <><Intro eyebrow={t.activeJobs} title={t.work} action={<button className="compact-add" onClick={() => openCreation("job")}><Plus size={16}/>{t.add}</button>}/><div className="filter-tabs"><button className={scope === "today" ? "active" : ""} onClick={() => setScope("today")}>{t.todayFilter}</button><button className={scope === "active" ? "active" : ""} onClick={() => setScope("active")}>{t.progress}</button><button className={scope === "history" ? "active" : ""} onClick={() => setScope("history")}>{t.history}</button></div><section className="job-list">{visibleJobs.map(({ job, vehicle, customer }) => { const vehicleName = vehicleTitle(vehicle) ?? vehicle?.plate ?? t.unknownVehicle; const statusClass = job.status === "in_progress" ? "active" : job.status; return <article className="job-card" key={job.id}><div className="job-top"><span className={"status-dot " + statusClass}/><strong>{vehicleName}<small>{[vehicle?.plate, customer?.name ?? t.noCustomer].filter(Boolean).join(" · ")}</small></strong><button aria-label={vehicleName + " options"} onClick={() => notice(job.title)}><Ellipsis size={18}/></button></div><p>{job.title}</p><footer><button className="job-status-btn" onClick={() => onJobUpdate(job.id, nextStatus(job.status))}>{nextLabel(job.status)}</button><button onClick={() => vehicle && selectVehicle(vehicle.id)}>{t.open}<ChevronRight size={15}/></button></footer></article>; })}{!visibleJobs.length && <Empty text={scope === "history" ? t.noHistory : t.noOpenJob}/>}</section></>;
 }
 
-function Customers({ t, query, setQuery, customerRows, selectVehicle, notice, openCreation }: { t: typeof el; query: string; setQuery: (value: string) => void; customerRows: Array<{ customer: any; vehicles: any[]; vehicleCount: number }>; selectVehicle: (id: string) => void; notice: (message: string) => void; openCreation: (mode: CreationMode) => void }) {
+function Customers({ t, query, setQuery, customerRows, selectVehicle, notice }: { t: typeof el; query: string; setQuery: (value: string) => void; customerRows: Array<{ customer: any; vehicles: any[]; vehicleCount: number }>; selectVehicle: (id: string) => void; notice: (message: string) => void }) {
   const TONES = ["mint", "blue", "peach", "lilac"];
   const filtered = customerRows.filter((row) => matchesCustomerQuery(row, query));
   return <><Intro eyebrow={t.customerList} title={t.customers} action={<button className="compact-add" onClick={() => openCreation("customer")}><Plus size={16}/>{t.add}</button>}/><SearchBox value={query} setValue={setQuery} placeholder={t.searchCustomer}/><section className="customer-list">{filtered.map((row, idx) => <article className="customer-row" key={row.customer.id}><span className={"avatar " + TONES[idx % TONES.length]}>{initials(row.customer.name)}</span><div><strong>{row.customer.name}</strong>{row.customer.phone ? <a href={"tel:" + row.customer.phone.replaceAll(" ", "")}><Phone size={13}/>{row.customer.phone}</a> : <small>{t.noPhone}</small>}<small><CarFront size={13}/>{row.vehicles.length ? row.vehicles.map((v: any) => v.plate).join(", ") : t.noVehicles}</small></div><span className="car-count" onClick={() => row.vehicles[0] && selectVehicle(row.vehicles[0].id)} style={{cursor: row.vehicles.length ? "pointer" : "default"}}>{row.vehicleCount}<small>{t.vehicles}</small></span></article>)}{!filtered.length && <Empty text={customerRows.length ? t.noResults : t.noVehicles}/>}</section></>;
@@ -493,4 +493,3 @@ function ProcessingState({ t, progress }: { t: typeof el; progress: ScanProgress
     </div>
   </div>;
 }
-

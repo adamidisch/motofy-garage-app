@@ -562,7 +562,6 @@ test("all page views rehydrate correctly after a reload", () => {
   assert.ok(allJobs.some((j) => j.vehicle_id === created.id));
 });
 
-
 /* ------------------------------------------------------------------ */
 /* Login / session / greeting                                          */
 /* ------------------------------------------------------------------ */
