@@ -1,7 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { runPlateRecognizerScan, runVehicleScan, ScanError } from "../lib/scan-core.mjs";
+import { extractInteractionText, parseLooseJson, runPlateRecognizerScan, runVehicleScan, ScanError } from "../lib/scan-core.mjs";
 
 interface Env {
   ASSETS: Fetcher;
@@ -20,6 +20,8 @@ interface Env {
 }
 
 type ScanPayload = { imageData?: string; mimeType?: string };
+
+type NamePayload = { name?: string };
 
 function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -92,6 +94,38 @@ async function scanVehicle(request: Request, env: Env) {
   }
 }
 
+async function normalizeName(request: Request, env: Env) {
+  let payload: NamePayload;
+  try { payload = (await request.json()) as NamePayload; } catch { return json({ error: "Το όνομα δεν διαβάστηκε." }, 400); }
+  const name = String(payload.name ?? "").trim();
+  if (!name || name.length > 80) return json({ error: "Μη έγκυρο όνομα." }, 400);
+  if (!env.GEMINI_API_KEY) return json({ canonical_name: name, confidence: "low", provider: "fallback" });
+
+  const prompt = `You normalize a person's display name for a Greek garage app. Input: "${name.replaceAll('"', '\\"')}". ` +
+    "If it is Greeklish for a Greek first name, return the correct Greek nominative with accents (demetris -> Δημήτρης, kostas -> Κώστας). Never remove Greek accent marks. " +
+    "If it is already Greek, preserve its spelling and accents unless correcting an obvious Greeklish/transliteration error. If it is an actual foreign/English name or uncertain, preserve it exactly. Return JSON only: canonical_name (string), script (greek|foreign), confidence (high|medium|low).";
+  try {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        model: "gemini-3.8-flash",
+        store: false,
+        input: [{ type: "text", text: prompt }],
+        generation_config: { thinking_level: "low", thinking_summaries: "none" },
+        response_format: { type: "text", mime_type: "application/json", schema: { type: "object", properties: { canonical_name: { type: "string" }, script: { type: "string", enum: ["greek", "foreign"] }, confidence: { type: "string", enum: ["high", "medium", "low"] } }, required: ["canonical_name", "script", "confidence"] } },
+      }),
+    });
+    if (!response.ok) return json({ canonical_name: name, confidence: "low", provider: "fallback" });
+    const body = await response.json();
+    const parsed = parseLooseJson(extractInteractionText(body) ?? "");
+    const canonical = typeof parsed?.canonical_name === "string" && parsed.canonical_name.trim() ? parsed.canonical_name.trim() : name;
+    return json({ canonical_name: canonical.slice(0, 80), script: parsed?.script === "greek" ? "greek" : "foreign", confidence: parsed?.confidence ?? "low", provider: "gemini" });
+  } catch {
+    return json({ canonical_name: name, confidence: "low", provider: "fallback" });
+  }
+}
+
 interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
   passThroughOnException(): void;
@@ -117,6 +151,11 @@ const worker = {
       return scanVehicle(request, env);
     }
 
+    if (url.pathname === "/api/name/normalize") {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      return normalizeName(request, env);
+    }
+
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       return handleImageOptimization(request, {
@@ -128,19 +167,7 @@ const worker = {
       }, allowedWidths);
     }
 
-    const response = await handler.fetch(request, env, ctx);
-
-    // Keep the app fast: only the initial HTML document revalidates.
-    // Hashed JS/CSS/assets keep their normal long-lived caching.
-    const acceptsHtml = request.headers.get("accept")?.includes("text/html");
-    if (request.method === "GET" && acceptsHtml) {
-      const headers = new Headers(response.headers);
-      headers.set("Cache-Control", "no-cache, max-age=0, must-revalidate");
-      headers.set("CDN-Cache-Control", "no-cache");
-      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
-    }
-
-    return response;
+    return handler.fetch(request, env, ctx);
   },
 };
 
