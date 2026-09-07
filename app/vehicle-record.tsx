@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowLeft, CalendarClock, Camera, Check, ChevronRight, CircleDashed, Clock3, Gauge, ImageIcon, Mail, Phone, ScanLine, StickyNote, UserRound, Wrench, X } from "lucide-react";
-import { pickPhoto } from "../lib/data/photo-store.mjs";
+import { useRef, useState } from "react";
+import { ArrowLeft, CalendarClock, Camera, CarFront, Check, ChevronRight, CircleDashed, Clock3, Gauge, ImageIcon, Mail, Phone, ScanLine, StickyNote, UserRound, Wrench, X } from "lucide-react";
 
 import { formatDate, formatDateTime, formatMileage, formatRelative, initials } from "../lib/data/vehicle-record.mjs";
 import type { VehicleRecord as VehicleRecordModel } from "../lib/data/vehicle-record.d.mts";
@@ -23,11 +22,8 @@ export default function VehicleRecord({
   close,
   openVehicle,
   onJobUpdate,
-  openCreation,
-  vehiclePhoto,
-  customerPhoto,
-  onVehiclePhotoChange,
-  onCustomerPhotoChange,
+  photoUrl,
+  onPhotoChange,
 }: {
   record: VehicleRecordModel;
   t: Copy;
@@ -35,13 +31,11 @@ export default function VehicleRecord({
   close: () => void;
   openVehicle: (vehicleId: string) => void;
   onJobUpdate: (jobId: string, status: string) => void;
-  openCreation: (mode: string) => void;
-  vehiclePhoto: string | null;
-  customerPhoto: string | null;
-  onVehiclePhotoChange: (dataUrl: string) => void;
-  onCustomerPhotoChange: (dataUrl: string) => void;
+  photoUrl?: string | null;
+  onPhotoChange?: (dataUrl: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const { vehicle, display, customer, otherVehicles, jobs, notes, lastActivity, scanSuggestion, empty } = record;
 
   const tabs: Array<[Tab, string]> = [
@@ -62,21 +56,15 @@ export default function VehicleRecord({
       <section className="record-modal">
         <header>
           <button aria-label={t.cancel} onClick={close}><ArrowLeft size={20}/></button>
-          <div>
+          <div className="record-modal-title">
             <p className="eyebrow">{t.vehicle}</p>
-            <h2>{display.title ?? t.unknownVehicle}</h2>
+            <h2 className="record-vehicle-heading">{display.title ?? t.unknownVehicle}</h2>
+            {display.subtitle && <small className="record-vehicle-subtitle">{display.subtitle}</small>}
           </div>
           <button aria-label={t.cancel} onClick={close}><X size={20}/></button>
         </header>
 
-        <div className="plate-display">{display.plate}</div>
-        {display.subtitle && <p className="record-subtitle">{display.subtitle}</p>}
-        <button className="vehicle-avatar-btn" onClick={async () => { const url = await pickPhoto(); if (url) onVehiclePhotoChange(url); }} aria-label={t.changePhoto}>
-          {vehiclePhoto
-            ? <img src={vehiclePhoto} alt={display.plate} className="vehicle-avatar-img"/>
-            : <span className="vehicle-avatar-placeholder"><Camera size={20}/></span>}
-          <span className="avatar-change-hint"><Camera size={11}/>{t.photos}</span>
-        </button>
+        <div className="record-identity"><button className="record-photo record-photo-button" type="button" aria-label="Change vehicle photo" onClick={() => photoInputRef.current?.click()}>{photoUrl ? <img src={photoUrl} alt=""/> : <CarFront size={28}/>}<span className="record-photo-edit"><Camera size={13}/></span></button><input ref={photoInputRef} className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={(event) => { const file = event.target.files?.[0]; if (!file || !onPhotoChange) return; const reader = new FileReader(); reader.onload = () => onPhotoChange(String(reader.result)); reader.readAsDataURL(file); event.currentTarget.value = ""; }}/><div className="plate-display">{display.plate ?? t.unknownVehicle}</div></div>
 
         <div className="record-tabs" role="tablist">
           {tabs.map(([id, label]) => (
@@ -91,6 +79,7 @@ export default function VehicleRecord({
             </button>
           ))}
         </div>
+        <label className="record-tab-select"><span className="visually-hidden">{t.open}</span><select value={tab} onChange={(event) => setTab(event.target.value as Tab)}>{tabs.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
 
         <div className="record-panel">
           {tab === "overview" && (
@@ -104,11 +93,10 @@ export default function VehicleRecord({
               scanSuggestion={scanSuggestion}
               empty={empty}
               openCustomerTab={() => setTab("customer")}
-              openCreation={openCreation}
             />
           )}
 
-          {tab === "jobs" && <Jobs t={t} lang={lang} jobs={jobs} empty={empty} onJobUpdate={onJobUpdate} openCreation={openCreation}/>} 
+          {tab === "jobs" && <Jobs t={t} lang={lang} jobs={jobs} empty={empty} onJobUpdate={onJobUpdate}/>}
 
           {tab === "notes" && <Notes t={t} lang={lang} notes={notes} empty={empty}/>}
 
@@ -119,9 +107,6 @@ export default function VehicleRecord({
               otherVehicles={otherVehicles}
               empty={empty}
               openVehicle={openVehicle}
-              customerPhoto={customerPhoto}
-              vehiclePhoto={vehiclePhoto}
-              onCustomerPhotoChange={onCustomerPhotoChange}
             />
           )}
         </div>
@@ -152,13 +137,12 @@ function statusLabel(status: string, t: Copy) {
 /* ------------------------------------------------------------------ */
 
 function Overview({
-  t, lang, vehicle, customer, currentJob, lastActivity, scanSuggestion, empty, openCustomerTab, openCreation,
+  t, lang, vehicle, customer, currentJob, lastActivity, scanSuggestion, empty, openCustomerTab,
 }: {
   t: Copy; lang: "el" | "en"; vehicle: Vehicle; customer: VehicleRecordModel["customer"];
   currentJob: Job | null; lastActivity: VehicleRecordModel["lastActivity"];
   scanSuggestion: VehicleRecordModel["scanSuggestion"]; empty: VehicleRecordModel["empty"];
   openCustomerTab: () => void;
-  openCreation: (mode: string) => void;
 }) {
   return (
     <>
@@ -189,13 +173,7 @@ function Overview({
             </div>
           </article>
         ) : (
-          <div className="record-empty-action">
-            <EmptyPanel icon={<CircleDashed size={20}/>} title={t.noOpenJob} hint={t.noOpenJobHint}/>
-            <div className="record-empty-btns">
-              <button className="record-add-btn" onClick={() => openCreation("job")}><Wrench size={13}/>{t.newJob}</button>
-              <button className="record-add-btn secondary" onClick={() => openCreation("note")}><StickyNote size={13}/>{t.newNote}</button>
-            </div>
-          </div>
+          <EmptyPanel icon={<CircleDashed size={20}/>} title={t.noOpenJob} hint={t.noOpenJobHint}/>
         )}
       </section>
 
@@ -267,11 +245,11 @@ function ScanSuggestion({ t, lang, suggestion }: { t: Copy; lang: "el" | "en"; s
 
 /* ------------------------------------------------------------------ */
 
-function Jobs({ t, lang, jobs, empty, onJobUpdate, openCreation }: { t: Copy; lang: "el" | "en"; jobs: VehicleRecordModel["jobs"]; empty: VehicleRecordModel["empty"]; onJobUpdate: (jobId: string, status: string) => void; openCreation: (mode: string) => void }) {
+function Jobs({ t, lang, jobs, empty, onJobUpdate }: { t: Copy; lang: "el" | "en"; jobs: VehicleRecordModel["jobs"]; empty: VehicleRecordModel["empty"]; onJobUpdate: (jobId: string, status: string) => void }) {
   function nextStatus(s: string) { return s === "scheduled" ? "in_progress" : s === "in_progress" ? "done" : "scheduled"; }
   function nextLabel(s: string) { return s === "scheduled" ? t.markInProgress : s === "in_progress" ? t.markDone : t.reopen; }
   if (empty.jobs) {
-    return <div className="record-empty-action"><EmptyPanel icon={<Wrench size={20}/>} title={t.noJobs} hint={t.noJobsHint}/><div className="record-empty-btns"><button className="record-add-btn" onClick={() => openCreation("job")}><Wrench size={13}/>{t.newJob}</button></div></div>;
+    return <EmptyPanel icon={<Wrench size={20}/>} title={t.noJobs} hint={t.noJobsHint}/>;
   }
 
   return (
@@ -294,7 +272,7 @@ function Jobs({ t, lang, jobs, empty, onJobUpdate, openCreation }: { t: Copy; la
             </article>
           ))
         ) : (
-          <div className="record-empty-action"><EmptyPanel icon={<CircleDashed size={20}/>} title={t.noOpenJob}/><div className="record-empty-btns"><button className="record-add-btn" onClick={() => openCreation("job")}><Wrench size={13}/>{t.newJob}</button></div></div>
+          <EmptyPanel icon={<CircleDashed size={20}/>} title={t.noOpenJob}/>
         )}
       </section>
 
@@ -359,11 +337,10 @@ function Notes({ t, lang, notes, empty }: { t: Copy; lang: "el" | "en"; notes: V
 /* ------------------------------------------------------------------ */
 
 function CustomerPanel({
-  t, customer, otherVehicles, empty, openVehicle, customerPhoto, vehiclePhoto, onCustomerPhotoChange,
+  t, customer, otherVehicles, empty, openVehicle,
 }: {
   t: Copy; customer: VehicleRecordModel["customer"]; otherVehicles: Vehicle[];
   empty: VehicleRecordModel["empty"]; openVehicle: (vehicleId: string) => void;
-  customerPhoto: string | null; vehiclePhoto: string | null; onCustomerPhotoChange: (url: string) => void;
 }) {
   if (empty.customer || !customer) {
     return <EmptyPanel icon={<UserRound size={20}/>} title={t.noCustomer} hint={t.noCustomerHint}/>;
@@ -372,11 +349,7 @@ function CustomerPanel({
   return (
     <>
       <section className="record-customer">
-        <button className="customer-avatar-btn" onClick={async () => { const url = await pickPhoto(); if (url) onCustomerPhotoChange(url); }} aria-label={t.changePhoto}>
-          {(customerPhoto ?? vehiclePhoto)
-            ? <img src={customerPhoto ?? vehiclePhoto!} alt={customer.name} className="customer-avatar-img"/>
-            : <span className="avatar blue customer-avatar-initials">{initials(customer.name)}</span>}
-        </button>
+        <span className="avatar blue">{initials(customer.name)}</span>
         <div>
           <strong>{customer.name}</strong>
           {customer.phone ? (
