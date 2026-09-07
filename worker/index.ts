@@ -128,7 +128,19 @@ const worker = {
       }, allowedWidths);
     }
 
-    return handler.fetch(request, env, ctx);
+    const response = await handler.fetch(request, env, ctx);
+
+    // Keep the app fast: only the initial HTML document revalidates.
+    // Hashed JS/CSS/assets keep their normal long-lived caching.
+    const acceptsHtml = request.headers.get("accept")?.includes("text/html");
+    if (request.method === "GET" && acceptsHtml) {
+      const headers = new Headers(response.headers);
+      headers.set("Cache-Control", "no-cache, max-age=0, must-revalidate");
+      headers.set("CDN-Cache-Control", "no-cache");
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    }
+
+    return response;
   },
 };
 
