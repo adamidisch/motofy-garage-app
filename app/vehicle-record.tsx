@@ -69,14 +69,14 @@ export default function VehicleRecord({
           <button aria-label={t.cancel} onClick={close}><X size={20}/></button>
         </header>
 
+        <div className="plate-display">{display.plate}</div>
+        {display.subtitle && <p className="record-subtitle">{display.subtitle}</p>}
         <button className="vehicle-avatar-btn" onClick={async () => { const url = await pickPhoto(); if (url) onVehiclePhotoChange(url); }} aria-label={t.changePhoto}>
           {vehiclePhoto
             ? <img src={vehiclePhoto} alt={display.plate} className="vehicle-avatar-img"/>
             : <span className="vehicle-avatar-placeholder"><Camera size={20}/></span>}
           <span className="avatar-change-hint"><Camera size={11}/>{t.photos}</span>
         </button>
-        <div className="plate-display">{display.plate}</div>
-        {display.subtitle && <p className="record-subtitle">{display.subtitle}</p>}
 
         <div className="record-tabs" role="tablist">
           {tabs.map(([id, label]) => (
