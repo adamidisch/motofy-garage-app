@@ -86,4 +86,3 @@ export declare function filterJobRows(rows: JobRow[], scope: "today" | "active" 
 export declare function buildCustomerRow(repository: Repository, customer: Customer): CustomerRow;
 export declare function matchesCustomerQuery(row: CustomerRow, query: string): boolean;
 export declare function buildDashboardSummary(repository: Repository): DashboardSummary;
-
