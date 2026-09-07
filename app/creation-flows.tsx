@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CarFront, Check, UserRound, Wrench, X } from "lucide-react";
+import { CarFront, Check, ScanLine, UserRound, Wrench, X } from "lucide-react";
 
 import type { Repository } from "../lib/data/repository.d.mts";
 
@@ -14,7 +14,7 @@ type JobDraft = { vehicle_id: string; title: string; mileage_km: string };
 type NoteDraft = { vehicle_id: string; body: string };
 
 export default function CreationModal({
-  mode, repository, t, initialScan, initialVehicleId, close, onCreateVehicle, onCreateCustomer, onCreateJob, onCreateNote,
+  mode, repository, t, initialScan, initialVehicleId, close, onScanVehicle, onCreateVehicle, onCreateCustomer, onCreateJob, onCreateNote,
 }: {
   mode: CreationMode;
   repository: Repository;
@@ -22,6 +22,7 @@ export default function CreationModal({
   initialScan?: { plate: string | null; make: string | null; model: string | null } | null;
   initialVehicleId?: string | null;
   close: () => void;
+  onScanVehicle: () => void;
   onCreateVehicle: (draft: { plate: string; make: string | null; model: string | null; mileage_km: number | null; customer_id: string | null }) => void;
   onCreateCustomer: (draft: { name: string; phone: string | null }) => void;
   onCreateJob: (draft: { vehicle_id: string; title: string; mileage_km: number | null }) => void;
@@ -35,21 +36,21 @@ export default function CreationModal({
           <div><p className="eyebrow">{t.add}</p><h2>{title}</h2></div>
           <button aria-label={t.cancel} onClick={close}><X size={20}/></button>
         </header>
-        {mode === "vehicle" && <VehicleForm repository={repository} t={t} initialScan={initialScan} onSubmit={onCreateVehicle} close={close}/>} 
-        {mode === "customer" && <CustomerForm t={t} onSubmit={onCreateCustomer} close={close}/>} 
-        {mode === "job" && <JobForm repository={repository} t={t} initialVehicleId={initialVehicleId} onSubmit={onCreateJob} close={close}/>} 
-        {mode === "note" && <NoteForm repository={repository} t={t} initialVehicleId={initialVehicleId} onSubmit={onCreateNote} close={close}/>} 
+        {mode === "vehicle" && <VehicleForm repository={repository} t={t} initialScan={initialScan} onSubmit={onCreateVehicle} onScanVehicle={onScanVehicle} close={close}/>}
+        {mode === "customer" && <CustomerForm t={t} onSubmit={onCreateCustomer} close={close}/>}
+        {mode === "job" && <JobForm repository={repository} t={t} initialVehicleId={initialVehicleId} onSubmit={onCreateJob} close={close}/>}
+        {mode === "note" && <NoteForm repository={repository} t={t} initialVehicleId={initialVehicleId} onSubmit={onCreateNote} close={close}/>}
       </section>
     </div>
   );
 }
 
-function VehicleForm({ repository, t, initialScan, onSubmit, close }: { repository: Repository; t: Copy; initialScan?: { plate: string | null; make: string | null; model: string | null } | null; onSubmit: (draft: { plate: string; make: string | null; model: string | null; mileage_km: number | null; customer_id: string | null }) => void; close: () => void }) {
+function VehicleForm({ repository, t, initialScan, onSubmit, onScanVehicle, close }: { repository: Repository; t: Copy; initialScan?: { plate: string | null; make: string | null; model: string | null } | null; onSubmit: (draft: { plate: string; make: string | null; model: string | null; mileage_km: number | null; customer_id: string | null }) => void; onScanVehicle: () => void; close: () => void }) {
   const [draft, setDraft] = useState<VehicleDraft>({ plate: initialScan?.plate ?? "", make: initialScan?.make ?? "", model: initialScan?.model ?? "", mileage_km: "", customer_id: "" });
   const customers = useMemo(() => repository.listCustomers(), [repository]);
   return <form className="creation-form" onSubmit={(event) => { event.preventDefault(); if (!draft.plate.trim()) return; onSubmit({ plate: draft.plate, make: draft.make || null, model: draft.model || null, mileage_km: draft.mileage_km ? Number(draft.mileage_km) : null, customer_id: draft.customer_id || null }); }}>
     {initialScan && <div className="creation-context"><CarFront size={16}/><span>{t.scanPrefilled}</span></div>}
-    <Field label={t.plate} value={draft.plate} onChange={(value) => setDraft({ ...draft, plate: value })} required autoFocus />
+    <div className="creation-scan-field"><Field label={t.plate} value={draft.plate} onChange={(value) => setDraft({ ...draft, plate: value })} required autoFocus /><button type="button" className="creation-scan-button" onClick={onScanVehicle}><ScanLine size={16}/><span>{t.scan}</span></button></div>
     <div className="creation-two"><Field label={t.fieldMake} value={draft.make} onChange={(value) => setDraft({ ...draft, make: value })}/><Field label={t.fieldModel} value={draft.model} onChange={(value) => setDraft({ ...draft, model: value })}/></div>
     <Field label={t.mileage} value={draft.mileage_km} onChange={(value) => setDraft({ ...draft, mileage_km: value })} inputMode="numeric" placeholder={t.optional}/>
     <label className="creation-label">{t.owner}<select value={draft.customer_id} onChange={(event) => setDraft({ ...draft, customer_id: event.target.value })}><option value="">{t.noCustomer}</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
