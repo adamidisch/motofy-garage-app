@@ -562,7 +562,6 @@ test("all page views rehydrate correctly after a reload", () => {
   assert.ok(allJobs.some((j) => j.vehicle_id === created.id));
 });
 
-
 /* ------------------------------------------------------------------ */
 /* Login / session / greeting                                          */
 /* ------------------------------------------------------------------ */
@@ -653,4 +652,179 @@ test("scheduled → in_progress → done transition", () => {
   assert.equal(r.getJob("job_fiesta_oil").completed_at, null);
   r.updateJob("job_fiesta_oil", { status: "done" });
   assert.ok(r.getJob("job_fiesta_oil").completed_at);
+});
+
+/* ------------------------------------------------------------------ */
+/* normalization.mjs                                                   */
+/* ------------------------------------------------------------------ */
+
+import {
+  buildSearchVariants,
+  formatPlate,
+  formatVocativeName,
+  matchesSearchVariants,
+  normalizePlate,
+  normalizeSearchText,
+  smartMatch,
+  transliterateGreeklish,
+} from "../lib/data/normalization.mjs";
+
+// ── plate normalisation ──────────────────────────────────────────────
+
+test("normalizePlate folds Greek homoglyphs to Latin key", () => {
+  assert.equal(normalizePlate("ΚΒΥ 328"), "KBY328");
+  assert.equal(normalizePlate("kby 328"), "KBY328");
+  assert.equal(normalizePlate("ΚΒΥ328"),  "KBY328");
+  assert.equal(normalizePlate("kby-328"), "KBY328");
+  assert.equal(normalizePlate("  KBY  328  "), "KBY328");
+});
+
+test("normalizePlate returns null for empty or unreadable input", () => {
+  assert.equal(normalizePlate(""),    null);
+  assert.equal(normalizePlate(null),  null);
+  assert.equal(normalizePlate("---"), null);
+});
+
+test("formatPlate produces display form with space", () => {
+  assert.equal(formatPlate("ΚΒΥ328"),  "KBY 328");
+  assert.equal(formatPlate("kby-328"), "KBY 328");
+  assert.equal(formatPlate("KBY 328"), "KBY 328");
+});
+
+test("normalizePlate does not corrupt ambiguous Greek letters", () => {
+  // Γ, Δ, Λ have no Latin lookalike → stripped, not wrongly mapped
+  const key = normalizePlate("ΓΔΛ");
+  assert.equal(key, null); // nothing survives — correct
+});
+
+// ── search text normalisation ────────────────────────────────────────
+
+test("normalizeSearchText strips accents and lowercases", () => {
+  assert.equal(normalizeSearchText("Μάριος"),    "μαριος");
+  assert.equal(normalizeSearchText("Ανδρέας"),   "ανδρεας");
+  assert.equal(normalizeSearchText("ΕΛΈΝΗ"),     "ελενη");
+  assert.equal(normalizeSearchText("Ανδρέου"),   "ανδρεου");
+  assert.equal(normalizeSearchText("Toyota"),    "toyota");
+});
+
+test("normalizeSearchText handles empty and null-like input", () => {
+  assert.equal(normalizeSearchText(""),  "");
+  assert.equal(normalizeSearchText("  "), "");
+});
+
+// ── Greeklish transliteration ────────────────────────────────────────
+
+test("transliterateGreeklish converts common names", () => {
+  assert.equal(transliterateGreeklish("marios"),  "μαριος");
+  assert.equal(transliterateGreeklish("giorgos"), "γιοργος");
+  assert.equal(transliterateGreeklish("kostas"),  "κοστας");
+  assert.equal(transliterateGreeklish("andreas"), "ανδρεας");
+  assert.equal(transliterateGreeklish("thanasis"),"θανασης");
+});
+
+test("transliterateGreeklish handles digraphs before single chars", () => {
+  assert.equal(transliterateGreeklish("the"),  "θε");  // th before t
+  assert.equal(transliterateGreeklish("mpan"), "μπαν"); // mp
+});
+
+// ── search variants ──────────────────────────────────────────────────
+
+test("buildSearchVariants returns accent-stripped variant", () => {
+  const v = buildSearchVariants("Μάριος");
+  assert.ok(v.includes("μαριος"), `variants: ${v}`);
+});
+
+test("buildSearchVariants from Greeklish produces Greek variant", () => {
+  const v = buildSearchVariants("marios");
+  assert.ok(v.includes("marios"));
+  assert.ok(v.includes("μαριος"), `variants: ${v}`);
+});
+
+test("buildSearchVariants from plate query produces normalized key", () => {
+  const v = buildSearchVariants("ΚΒΥ 328");
+  assert.ok(v.some((s) => s.includes("kby")), `variants: ${v}`);
+});
+
+test("buildSearchVariants returns [] for blank query", () => {
+  assert.deepEqual(buildSearchVariants(""), []);
+  assert.deepEqual(buildSearchVariants("  "), []);
+});
+
+// ── smartMatch ───────────────────────────────────────────────────────
+
+test("smartMatch finds Greek name from Greeklish query", () => {
+  assert.equal(smartMatch("marios", ["Μάριος Ανδρέου"]), true);
+  assert.equal(smartMatch("andreas", ["Ανδρέας Χρίστου"]), true);
+});
+
+test("smartMatch finds name ignoring accents", () => {
+  assert.equal(smartMatch("μαριος",  ["Μάριος Ανδρέου"]), true);
+  assert.equal(smartMatch("Μάριος",  ["Μάριος Ανδρέου"]), true);
+  assert.equal(smartMatch("ανδρεου", ["Μάριος Ανδρέου"]), true);
+});
+
+test("smartMatch finds plate from Greek keyboard input", () => {
+  assert.equal(smartMatch("ΚΒΥ", ["KBY 328"]), true); // homoglyph fold
+  assert.equal(smartMatch("kby", ["KBY 328"]), true); // plain ASCII
+});
+
+test("smartMatch returns false for no match", () => {
+  assert.equal(smartMatch("bmw", ["Μάριος Ανδρέου"]), false);
+});
+
+test("smartMatch returns true for empty query (matches all)", () => {
+  assert.equal(smartMatch("", ["anything"]), true);
+  assert.equal(smartMatch("  ", ["anything"]), true);
+});
+
+// ── vocative name ────────────────────────────────────────────────────
+
+test("formatVocativeName uses dictionary for common names", () => {
+  assert.equal(formatVocativeName("Μάριος"),   "Μάριε");
+  assert.equal(formatVocativeName("Ανδρέας"),  "Ανδρέα");
+  assert.equal(formatVocativeName("Γιώργος"),  "Γιώργη");
+  assert.equal(formatVocativeName("Νίκος"),    "Νίκο");
+  assert.equal(formatVocativeName("Μιχάλης"),  "Μιχάλη");
+  assert.equal(formatVocativeName("Ανδρέας"),  "Ανδρέα");
+});
+
+test("formatVocativeName applies suffix rules for unknown names", () => {
+  // -ης → -η
+  assert.equal(formatVocativeName("Τεστής"), "Τεστή");
+  // -ας → -α
+  assert.equal(formatVocativeName("Σκοπάς"), "Σκοπά");
+});
+
+test("formatVocativeName is accent-insensitive for lookup", () => {
+  // Typed without accent — must still find the dictionary entry
+  assert.equal(formatVocativeName("Μαριος"), "Μάριε");
+});
+
+test("formatVocativeName preserves accents for unknown Greek names", () => {
+  assert.equal(formatVocativeName("Λεωνίδας"), "Λεωνίδα");
+  assert.equal(formatVocativeName("Δημήτρης"), "Δημήτρη");
+});
+
+test("formatVocativeName leaves feminine names unchanged", () => {
+  assert.equal(formatVocativeName("Ελένη"),   "Ελένη");
+  assert.equal(formatVocativeName("Μαρία"),   "Μαρία");
+  assert.equal(formatVocativeName("Ανδρέα"),  "Ανδρέα");
+});
+
+test("formatVocativeName returns ASCII names unchanged", () => {
+  assert.equal(formatVocativeName("Andreas"), "Andreas");
+  assert.equal(formatVocativeName("Mario"),   "Mario");
+});
+
+test("formatVocativeName renders common Greeklish names for Greek greeting", () => {
+  assert.equal(formatVocativeName("pehtis"), "Πέχτη");
+  assert.equal(formatVocativeName("marios"), "Μάριε");
+  assert.equal(formatVocativeName("antreas"), "Αντρέα");
+  assert.equal(formatVocativeName("kostas"), "Κώστα");
+  assert.equal(formatVocativeName("demetris"), "Δημήτρη");
+});
+
+test("formatVocativeName does not crash on empty input", () => {
+  assert.equal(formatVocativeName(""),    "");
+  assert.equal(formatVocativeName("  "), "  ");
 });
