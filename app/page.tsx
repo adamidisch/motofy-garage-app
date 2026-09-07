@@ -34,7 +34,7 @@ function greet(name: string, lang: "el" | "en", now = new Date()): string {
   return (morning ? "Καλημέρα, " : "Καλησπέρα, ") + display;
 }
 
-const APP_VERSION = "2.1.8";
+const APP_VERSION = "2.1.9";
 const APP_RELEASE = "Phase 1";
 
 
@@ -63,15 +63,28 @@ function LoginScreen({ onLogin, onDemo }: { onLogin: (name: string) => void; onD
   return (
     <div className="login-screen">
       <div className="login-card">
-        <div className="login-brand"><span className="brand-mark"><Wrench size={20}/></span><span className="brand-name">motofy</span></div>
-        <h1>{t.loginTitle}</h1>
-        <p>{t.loginSubtitle}</p>
-        <input className="login-input" type="text" placeholder={t.yourName} value={name}
-          onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} autoFocus/>
-        <input className="login-input" type="tel" placeholder={t.loginPhone} value={phone}
-          onChange={(e) => setPhone(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()}/>
-        <button className="login-btn" onClick={submit} disabled={!name.trim()}>{t.loginBtn}</button>
-        <button className="login-demo-btn" onClick={onDemo}>{t.loginDemo}</button>
+        <div className="login-lockup">
+          <img src="/icon.svg" alt="" width={44} height={44} className="login-icon-anim"/>
+          <div className="login-lockup-text">
+            <span className="login-lockup-word">motofy</span>
+            <span className="login-lockup-ver">ver. {APP_VERSION}</span>
+          </div>
+        </div>
+        <p className="login-tagline">{t.loginSubtitle}</p>
+        <div className="login-fields">
+          <label className="login-field-label">
+            <span>{t.yourName}</span>
+            <input className="login-field-input" type="text" autoComplete="name" value={name}
+              onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} autoFocus/>
+          </label>
+          <label className="login-field-label">
+            <span>{t.loginPhone}<em className="login-field-hint">{t.optional}</em></span>
+            <input className="login-field-input" type="tel" autoComplete="tel" value={phone}
+              onChange={(e) => setPhone(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()}/>
+          </label>
+          <button className="login-btn" onClick={submit} disabled={!name.trim()}>{t.loginBtn}</button>
+          <button className="login-demo-link" onClick={onDemo}>{t.loginDemo}</button>
+        </div>
       </div>
     </div>
   );
@@ -441,7 +454,7 @@ function AppBody({ session, onLogout }: { session: string; onLogout: () => void 
 }
 
 function Dashboard({ t, lang, session, todayLabel, summary, startScanner, selectView, notice }: { t: typeof el; lang: "el" | "en"; session: string; todayLabel: string; summary: ReturnType<typeof buildDashboardSummary> | null; startScanner: () => void; selectView: (view: View) => void; notice: (message: string) => void }) {
-  return <><section className="intro-row"><div><p className="eyebrow">{todayLabel}</p><h1>{greet(session, lang)}</h1><p className="intro-copy">{t.subtitle}</p></div><button className="notification" onClick={() => notice(t.notificationsEmpty)} aria-label={t.notificationsTitle}><Bell size={18}/><i/></button></section>
+  return <><section className="intro-row"><div><p className="eyebrow">{todayLabel}</p><h1>{greet(session, lang)}</h1><p className="intro-copy">{t.subtitle}</p></div><button className="notification" onClick={() => notice(t.notificationsEmpty)} aria-label={t.notificationsTitle}><Bell size={17}/></button></section>
     <section className="scan-card"><div className="scan-orb"><ScanLine size={30}/></div><div className="scan-copy"><span className="pill"><Sparkles size={13}/> AI READY</span><h2>{t.scanTitle}</h2><p>{t.scanText}</p></div><button className="scan-button" onClick={startScanner}>{t.scan}<span><Camera size={16}/></span></button></section>
     <section className="metrics"><button onClick={() => selectView("work")}><span className="metric-icon indigo"><CalendarDays size={18}/></span><div><strong>{summary?.openCount ?? "—"}</strong><p>{t.activeJobs}</p></div></button><button onClick={() => notice(t.note)}><span className="metric-icon aqua"><StickyNote size={18}/></span><div><strong>{summary?.noteCount ?? "—"}</strong><p>{t.notes}</p></div></button><button onClick={() => selectView("work")}><span className="metric-icon gold"><ClipboardCheck size={18}/></span><div><strong>{summary?.openCount ?? "—"}</strong><p>{t.jobs}</p></div></button></section>
     <section className="section-heading"><div><p className="eyebrow">{t.activity}</p><h2>{t.garage}</h2></div><button onClick={() => selectView("work")}>{t.all}<ChevronRight size={15}/></button></section>
