@@ -24,12 +24,6 @@ type ScanProgress = {
   vehicleStatus: "idle" | "working" | "done" | "fallback";
 };
 
-function greeting(lang: "el" | "en", name: string) {
-  const hour = new Date().getHours();
-  const prefix = lang === "el" ? (hour < 12 ? "Καλημέρα" : "Καλησπέρα") : (hour < 12 ? "Good morning" : "Good evening");
-  return name.trim() ? `${prefix}, ${name.trim()}` : prefix;
-}
-
 const SESSION_KEY = "motofy-session";
 const DEMO_SESSION = "__demo__";
 
@@ -110,7 +104,9 @@ function AppBody({ session, onLogout }: { session: string; onLogout: () => void 
   // Created on the client only. The seed is stamped with the current time, so
   // building it during SSR and again after hydration would produce two
   // different trees.
-  const [repository, setRepository] = useState<Repository | null>(null);
+  const repositoryRef = useRef<Repository | null>(null);
+  const [, setRepoVersion] = useState(0);
+  const repository = repositoryRef.current;
   const [toast, setToast] = useState("");
   const [theme, setTheme] = useState("sky");
   const [userName, setUserName] = useState("");
@@ -125,8 +121,28 @@ function AppBody({ session, onLogout }: { session: string; onLogout: () => void 
   function notice(message: string, action?: () => void) { setToast(message); setToastAction(() => action ?? null); window.setTimeout(() => { setToast(""); setToastAction(null); }, 2200); }
   function selectView(next: View) { setView(next); setQuery(""); setMenuOpen(false); setAddOpen(false); }
 
+  async function syncPhotoMaps(repo: Repository) {
+    const vehicleIds = repo.listVehicles().map((vehicle) => vehicle.id);
+    const customerIds = repo.listCustomers().map((customer) => customer.id);
+    const [vehicles, customers] = await Promise.all([
+      loadPhotos("vehicle", vehicleIds),
+      loadPhotos("customer", customerIds),
+    ]);
+    setVehiclePhotos((current) => {
+      const next = new Map(current);
+      for (const [id, url] of vehicles) if (url && !next.get(id)) next.set(id, url);
+      return next;
+    });
+    setCustomerPhotos((current) => {
+      const next = new Map(current);
+      for (const [id, url] of customers) if (url && !next.get(id)) next.set(id, url);
+      return next;
+    });
+  }
   function refreshRepository() {
-    setRepository(createRepository({ storage: createBrowserStorage() }));
+    const repo = repositoryRef.current;
+    if (repo) void syncPhotoMaps(repo);
+    setRepoVersion((version) => version + 1);
   }
   function openCreation(mode: CreationMode, scan: ScanResult | null = null, vehicleId: string | null = null, photo: string | null = null) {
     setAddOpen(false); setMenuOpen(false); setCreationScan(scan); setCreationVehicleId(vehicleId); setCreationPhoto(photo); setCreation(mode);
@@ -160,11 +176,9 @@ function AppBody({ session, onLogout }: { session: string; onLogout: () => void 
 
   useEffect(() => {
     const repo = createRepository({ storage: createBrowserStorage() });
-    setRepository(repo);
-    const vids = repo.listVehicles().map((v) => v.id);
-    void loadPhotos("vehicle", vids).then((m) => setVehiclePhotos(m));
-    const cids = repo.listCustomers().map((c) => c.id);
-    void loadPhotos("customer", cids).then((m) => setCustomerPhotos(m));
+    repositoryRef.current = repo;
+    setRepoVersion((version) => version + 1);
+    void syncPhotoMaps(repo);
   }, []);
 
   const vehicleRows: VehicleListRow[] = repository
