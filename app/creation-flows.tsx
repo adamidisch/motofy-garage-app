@@ -31,13 +31,14 @@ export default function CreationModal({
   onCreateJob: (draft: { vehicle_id: string; title: string; mileage_km: number | null }) => void;
   onCreateNote: (draft: { vehicle_id: string; body: string }) => void;
 }) {
-  const title = mode === "vehicle" ? t.newCar : mode === "customer" ? t.newCustomer : mode === "job" ? "Νέα επίσκεψη" : t.newNote;
+  const greek = t.language === "Γλώσσα";
+  const title = mode === "vehicle" ? t.newCar : mode === "customer" ? t.newCustomer : mode === "job" ? (greek ? "Νέα επίσκεψη" : "New visit") : t.newNote;
   return (
     <div className={styles.screenLayer} role="dialog" aria-modal="true" aria-label={title}>
       <section className={styles.flowScreen}>
         <header className={styles.flowHeader}>
           <button aria-label={t.cancel} onClick={close}><ArrowLeft size={20}/></button>
-          <div><p>{mode === "job" ? "ΓΡΗΓΟΡΗ ΕΙΣΑΓΩΓΗ" : t.add}</p><h2>{title}</h2></div>
+          <div><p>{mode === "job" ? (greek ? "ΓΡΗΓΟΡΗ ΕΙΣΑΓΩΓΗ" : "QUICK CHECK-IN") : t.add}</p><h2>{title}</h2></div>
           <span/>
         </header>
         <div className={styles.flowBody}>
@@ -80,7 +81,7 @@ function JobForm({ repository, t, initialVehicleId, onSubmit, close }: { reposit
   const [mileage, setMileage] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [custom, setCustom] = useState("");
-  const greek = String(t.newCar ?? "").includes("Νέο") || String(t.customerName ?? "").includes("Όνομα");
+  const greek = t.language === "Γλώσσα";
   const choices = greek ? JOB_CHOICES_EL : JOB_CHOICES_EN;
 
   function toggle(choice: string) {
