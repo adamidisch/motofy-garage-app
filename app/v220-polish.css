@@ -1,0 +1,189 @@
+/* Motofy v2.2.0 — vehicle screen hierarchy polish.
+   Keep the existing dashboard and scanner untouched. */
+
+/* Vehicle record: plate number is always the first visual anchor. */
+[class*="recordHeader"] {
+  grid-template-columns: 38px auto minmax(0, 1fr) !important;
+  column-gap: 9px !important;
+}
+
+[class*="recordHeader"] > button {
+  grid-column: 1;
+}
+
+[class*="recordHeader"] > [class*="headerPlate"] {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+  padding: 7px 10px;
+  border: 1px solid rgba(72, 96, 190, .14);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #eef1ff, #e8f0ff);
+  color: #4259b4;
+  font-size: 13px;
+  font-weight: 820;
+  line-height: 1;
+  letter-spacing: .075em;
+  box-shadow: inset 0 1px rgba(255,255,255,.9);
+}
+
+[class*="recordHeader"] > div {
+  grid-column: 3;
+  min-width: 0;
+}
+
+[class*="recordHeader"] > div p {
+  margin-bottom: 2px;
+  color: #8290a8;
+  font-size: 8.5px;
+  font-weight: 760;
+}
+
+[class*="recordHeader"] > div h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #33445f;
+  font-size: 14px;
+  font-weight: 660;
+  letter-spacing: -.25px;
+}
+
+/* Main vehicle identity card. */
+[class*="vehicleHero"] {
+  border: 1px solid rgba(79, 105, 180, .11);
+  background: linear-gradient(135deg, rgba(255,255,255,.82), rgba(241,246,255,.78));
+}
+
+[class*="vehicleHero"] [class*="plate"] {
+  padding: 6px 9px;
+  border: 1px solid rgba(74, 95, 190, .12);
+  border-radius: 9px;
+  background: #e9edff;
+  color: #445bb8;
+  font-size: 13px;
+  font-weight: 840;
+  letter-spacing: .08em;
+}
+
+[class*="vehicleHero"] h3 {
+  margin: 6px 0 2px;
+  color: #263a5d;
+  font-size: 16px;
+  font-weight: 690;
+}
+
+[class*="vehicleHero"] p {
+  color: #77879f;
+  font-size: 11px;
+}
+
+/* New visit / active visit should read as a separate action block. */
+[class*="newVisitCard"] {
+  border-color: rgba(72, 130, 190, .16) !important;
+  background: linear-gradient(135deg, rgba(235,247,255,.94), rgba(239,243,255,.92)) !important;
+}
+
+[class*="newVisitCard"] > span {
+  color: #4c6fc3;
+  background: rgba(255,255,255,.82) !important;
+}
+
+[class*="activeVisitCard"] {
+  border-color: rgba(72, 162, 136, .18) !important;
+  background: linear-gradient(135deg, rgba(224,247,239,.95), rgba(235,243,255,.91)) !important;
+}
+
+[class*="activeVisitCard"] > span {
+  color: #3a9d80;
+  background: rgba(255,255,255,.82) !important;
+}
+
+/* Tabs stay neutral; the active section alone carries the accent. */
+[class*="tabs"] {
+  background: rgba(236,241,249,.74) !important;
+  border: 1px solid rgba(102, 128, 170, .08);
+}
+
+[class*="tabs"] button {
+  color: #7a879d !important;
+}
+
+[class*="tabs"] [class*="tabActive"] {
+  color: #4a60ba !important;
+  background: #fff !important;
+  box-shadow: 0 3px 10px rgba(69,93,142,.07) !important;
+}
+
+/* Distinguish overview information without adding visual noise. */
+[class*="infoGrid"] > :nth-child(1) {
+  border: 1px solid rgba(78, 112, 193, .10);
+  background: rgba(241,246,255,.82) !important;
+}
+
+[class*="infoGrid"] > :nth-child(2) {
+  border: 1px solid rgba(66, 159, 134, .10);
+  background: rgba(238,249,245,.82) !important;
+}
+
+[class*="basicBlock"] {
+  border: 1px solid rgba(102, 128, 170, .08);
+  background: rgba(255,255,255,.68) !important;
+}
+
+/* Scan-derived/unconfirmed data stays amber so it is never confused with confirmed data. */
+[class*="scanSuggestion"] {
+  border-color: #efd0a6 !important;
+  background: #fff4e6 !important;
+}
+
+/* Workflow state colors: blue = action, green = active/ready, amber = waiting. */
+[class*="statusHero"] {
+  border: 1px solid rgba(76, 153, 135, .09);
+  background: linear-gradient(135deg, rgba(247,251,255,.94), rgba(237,249,245,.88)) !important;
+}
+
+[class*="workflowCard"],
+[class*="checkoutSummary"],
+[class*="meCard"] {
+  border: 1px solid rgba(100, 127, 170, .08);
+}
+
+[class*="actionGrid"] button:nth-child(1) {
+  background: rgba(241,246,255,.86) !important;
+}
+
+[class*="actionGrid"] button:nth-child(2) {
+  background: rgba(246,243,255,.86) !important;
+}
+
+[class*="actionGrid"] button:nth-child(3) {
+  background: rgba(235,249,243,.90) !important;
+}
+
+[class*="actionGrid"] button:nth-child(4) {
+  background: rgba(239,248,250,.88) !important;
+}
+
+/* Small phones: keep plate first without crowding the header. */
+@media (max-width: 375px) {
+  [class*="recordHeader"] {
+    grid-template-columns: 36px auto minmax(0, 1fr) !important;
+    gap: 7px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  [class*="recordHeader"] > [class*="headerPlate"] {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  [class*="recordHeader"] > div h2 {
+    font-size: 13px;
+  }
+
+  [class*="vehicleHero"] [class*="plate"] {
+    font-size: 12px;
+  }
+}
