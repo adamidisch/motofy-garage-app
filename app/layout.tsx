@@ -26,7 +26,31 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="el">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <style>{`
+          .brand-ver {
+            margin-left: -3px;
+            color: #7f8faa;
+            font-size: 0 !important;
+            font-weight: 650;
+            line-height: 1;
+            letter-spacing: .02em;
+            opacity: .72;
+          }
+          .brand-ver::after {
+            content: "v2.2.0";
+            font-size: 8px;
+          }
+          .app-version {
+            font-size: 0 !important;
+          }
+          .app-version::after {
+            content: "Motofy v2.2.0 · Production";
+            font-size: 10px;
+          }
+        `}</style>
+        {children}
+      </body>
     </html>
   );
 }
