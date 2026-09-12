@@ -1,0 +1,14 @@
+export type PartStatus = "needed" | "ordered" | "waiting" | "arrived";
+export type WorkflowPart = { id: string; label: string; status: PartStatus };
+export type WorkflowCost = { id: string; label: string; amount: number };
+export type JobWorkflow = { parts: WorkflowPart[]; costs: WorkflowCost[]; ready: boolean; customerNote: string };
+export function getJobWorkflow(jobId: string): JobWorkflow;
+export function updateJobWorkflow(jobId: string, updater: Partial<JobWorkflow> | ((current: JobWorkflow) => JobWorkflow)): JobWorkflow;
+export function addPart(jobId: string, label: string): JobWorkflow;
+export function cyclePart(jobId: string, partId: string): JobWorkflow;
+export function removePart(jobId: string, partId: string): JobWorkflow;
+export function addCost(jobId: string, label: string, amount: string | number): JobWorkflow;
+export function removeCost(jobId: string, costId: string): JobWorkflow;
+export function setReady(jobId: string, ready: boolean): JobWorkflow;
+export function setCustomerNote(jobId: string, note: string): JobWorkflow;
+export function totalCost(workflow: JobWorkflow | null | undefined): number;
