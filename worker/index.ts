@@ -2,6 +2,7 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { runPlateRecognizerScan, runVehicleScan, ScanError } from "../lib/scan-core.mjs";
+import { runNameNormalize } from "../lib/name-core.mjs";
 
 interface Env {
   ASSETS: Fetcher;
@@ -92,20 +93,42 @@ async function scanVehicle(request: Request, env: Env) {
   }
 }
 
+async function normalizeName(request: Request, env: Env) {
+  let payload: { name?: string; lang?: string } = {};
+  try {
+    payload = (await request.json()) as { name?: string; lang?: string };
+  } catch {
+    return json({ error: "Το όνομα δεν διαβάστηκε." }, 400);
+  }
+  try {
+    const result = await runNameNormalize({
+      apiKey: env.GEMINI_API_KEY,
+      name: payload.name,
+      lang: payload.lang === "en" ? "en" : "el",
+      log: (message: string, ...rest: unknown[]) => console.error("[name]", message, ...rest),
+    });
+    return json(result);
+  } catch (error) {
+    if (error instanceof ScanError) {
+      return json({ error: error.userMessage }, error.status);
+    }
+    return json({ error: "Δεν ολοκληρώθηκε η προσαρμογή ονόματος." }, 500);
+  }
+}
+
 interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
   passThroughOnException(): void;
 }
 
-// Image security config. SVG sources with .svg extension auto-skip the
-// optimization endpoint on the client side (served directly, no proxy).
-// To route SVGs through the optimizer (with security headers), set
-// dangerouslyAllowSVG: true in next.config.js and uncomment below:
-// const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
-
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === "/api/name") {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      return normalizeName(request, env);
+    }
 
     if (url.pathname === "/api/scan/plate") {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -130,8 +153,6 @@ const worker = {
 
     const response = await handler.fetch(request, env, ctx);
 
-    // Keep the app fast: only the initial HTML document revalidates.
-    // Hashed JS/CSS/assets keep their normal long-lived caching.
     const acceptsHtml = request.headers.get("accept")?.includes("text/html");
     if (request.method === "GET" && acceptsHtml) {
       const headers = new Headers(response.headers);
