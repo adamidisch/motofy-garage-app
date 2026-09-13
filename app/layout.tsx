@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./v220-polish.css";
+import "./login.css";
 
 export const metadata: Metadata = {
   title: "Motofy Garage",
