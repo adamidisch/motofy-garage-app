@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import styles from "./motofy2.module.css";
+import tabCss from "./screen-tabs.module.css";
 import { getJobWorkflow, setReady } from "../lib/data/workflow-store.mjs";
 import type { VehicleRecord as VehicleRecordModel } from "../lib/data/vehicle-record.d.mts";
-import { RecordHome, VisitScreen, CheckoutScreen, MotofyMePreview } from "./vehicle-tabs";
-import type { Tab, VisitTab } from "./vehicle-tabs";
+import { RecordHome, VisitScreen } from "./vehicle-home";
+import { CheckoutScreen, MotofyMePreview } from "./visit-panels";
+import type { Tab, VisitTab } from "./vehicle-home";
 
 type Screen = "record" | "visit" | "checkout" | "me";
 type Copy = Record<string, string>;
@@ -42,7 +44,7 @@ export default function VehicleRecord({
   }
   function openVisit() { if (!activeJob) { openCreation("job"); return; } setVisitTab("work"); setScreen("visit"); }
 
-  return <div className={styles.screenLayer} role="main" aria-label={t.vehicle}>
+  return <div className={`${styles.screenLayer} ${tabCss.fullBleed}`} role="main" aria-label={t.vehicle}>
     <section className={styles.recordScreen}>
       <header className={styles.recordHeader}>
         <button aria-label={t.cancel} onClick={back}><ArrowLeft size={20}/></button>
