@@ -1,17 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Camera, Check, ChevronRight, CircleDashed, Clock3, Euro, Gauge, ImageIcon, Mail, Package, Phone, Plus, Share2, StickyNote, Trash2, UserRound, Wrench, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import styles from "./motofy2.module.css";
-import { pickPhoto } from "../lib/data/photo-store.mjs";
-import { addCost, addPart, cyclePart, getJobWorkflow, removeCost, removePart, setCustomerNote, setReady, totalCost } from "../lib/data/workflow-store.mjs";
-import type { JobWorkflow, WorkflowCost, WorkflowPart } from "../lib/data/workflow-store.mjs";
-import { formatDate, formatDateTime, formatMileage, formatRelative, initials } from "../lib/data/vehicle-record.mjs";
+import { getJobWorkflow, setReady } from "../lib/data/workflow-store.mjs";
 import type { VehicleRecord as VehicleRecordModel } from "../lib/data/vehicle-record.d.mts";
-import type { Job, Vehicle } from "../lib/data/schema.d.mts";
+import { RecordHome, VisitScreen, CheckoutScreen, MotofyMePreview } from "./vehicle-tabs";
+import type { Tab, VisitTab } from "./vehicle-tabs";
 
-type Tab = "overview" | "jobs" | "next" | "notes" | "customer";
-type VisitTab = "work" | "parts" | "cost" | "photos";
 type Screen = "record" | "visit" | "checkout" | "me";
 type Copy = Record<string, string>;
 
