@@ -41,12 +41,12 @@ Repository: `adamidisch/motofy-garage-app`
 
 Canonical development branch: `main`
 
-At the time this snapshot was written:
+Current functional reference:
 
-- `main` head: `07ea600b83fcdc5dd1629a0a3c11c0e183d09656`
-- latest functional UI baseline on `main`: `c5c94476f0e08db32cb5e4fcc2a1a31909d5ea08` — plate-first hierarchy and semantic colors
-- commits after that functional baseline are documentation-only agent-guidance updates
+- latest known functional UI baseline on `main`: `c5c94476f0e08db32cb5e4fcc2a1a31909d5ea08` — plate-first hierarchy and semantic colors
+- newer `main` commits may be documentation-only agent/current-state updates
 - package/app semantic version remains `2.2.0`
+- when an exact current `main` SHA is needed, read the branch head directly from GitHub rather than copying an older SHA from this document
 
 ### Important temporary mismatch
 
