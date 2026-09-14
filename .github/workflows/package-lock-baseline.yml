@@ -6,13 +6,14 @@ on:
       - chore/package-lock-baseline
     paths:
       - .github/workflows/package-lock-baseline.yml
+      - .npmrc
       - package.json
       - scripts/install-ci.sh
       - scripts/build-verified.sh
       - scripts/sites-env.sh
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   baseline:
@@ -28,17 +29,19 @@ jobs:
         with:
           node-version: 22.13.0
 
-      - name: Resolve dependencies with legacy peer handling
-        run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
+      - name: Generate canonical lockfile using repo npm config
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
 
       - name: Verify manifest was not changed
         run: git diff --exit-code -- package.json
 
-      - name: Remove install tree before clean-install gate
-        run: rm -rf node_modules
+      - name: Verify repo npm config
+        run: |
+          test "$(npm config get legacy-peer-deps)" = "true"
+          node -e "const p=require('./package-lock.json'); console.log('lockfileVersion=' + p.lockfileVersion);"
 
-      - name: Clean install from generated lockfile
-        run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Run Motofy install-ci pipeline
+        run: npm run install:ci
 
       - name: Unit tests
         run: npm run test:unit
@@ -48,9 +51,7 @@ jobs:
         continue-on-error: true
         run: npm run lint
 
-      - name: Build diagnostic
-        id: build
-        continue-on-error: true
+      - name: Build
         run: npm run build
 
       - name: Review generated lockfile
@@ -59,17 +60,21 @@ jobs:
           test -f package-lock.json
           git status --short
           git diff --stat -- package-lock.json
-          node -e "const p=require('./package-lock.json'); console.log('lockfileVersion=' + p.lockfileVersion);"
 
-      - name: Final diagnostic gate
+      - name: Commit verified lockfile to temporary branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: establish verified package lock baseline"
+          git push
+
+      - name: Report lint baseline
         shell: bash
         run: |
           echo "lint_outcome=${{ steps.lint.outcome }}"
-          echo "build_outcome=${{ steps.build.outcome }}"
-          if [ "${{ steps.build.outcome }}" != "success" ]; then
-            echo "Build failed; package-lock baseline is not acceptable."
-            exit 1
-          fi
           if [ "${{ steps.lint.outcome }}" != "success" ]; then
-            echo "Build and unit tests passed, but pre-existing lint debt remains. No lockfile is committed by this diagnostic workflow."
+            echo "Lockfile install/tests/build passed. Existing source lint debt remains and is not part of this lockfile commit."
           fi
