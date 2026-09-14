@@ -19,6 +19,7 @@ Motofy is a mobile-first garage workspace designed for a mechanic working on a p
 
 Prefer:
 - camera
+- voice
 - OCR / AI
 - sensible defaults
 - automation
@@ -31,6 +32,14 @@ Primary flow:
 `SCAN → VEHICLE MATCH → CUSTOMER → JOB → HISTORY`
 
 Typing is a fallback, not the primary path.
+
+### Planned voice input
+
+Voice is a planned core input mode for Motofy alongside camera, OCR and AI. It should reduce typing for actions such as notes, job updates, parts information and other garage workflow input.
+
+Voice must remain optional and should not create a separate complicated interaction model. Prefer short natural commands or dictation that map into existing Motofy actions and fields.
+
+For critical structured data or actions, show the interpreted result visually and require a simple confirmation before saving or executing it. Never silently commit uncertain speech recognition.
 
 ## UI direction
 
