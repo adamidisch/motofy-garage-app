@@ -40,8 +40,8 @@ jobs:
           test "$(npm config get legacy-peer-deps)" = "true"
           node -e "const p=require('./package-lock.json'); console.log('lockfileVersion=' + p.lockfileVersion);"
 
-      - name: Run Motofy install-ci pipeline
-        run: npm run install:ci
+      - name: Run wrapped Motofy install-ci pipeline
+        run: bash scripts/sites-env.sh -- bash scripts/install-ci.sh
 
       - name: Unit tests
         run: npm run test:unit
