@@ -1,0 +1,78 @@
+name: Package lock baseline
+
+on:
+  push:
+    branches:
+      - chore/package-lock-baseline
+    paths:
+      - .github/workflows/package-lock-baseline.yml
+      - package.json
+      - scripts/install-ci.sh
+      - scripts/build-verified.sh
+      - scripts/sites-env.sh
+
+permissions:
+  contents: write
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+
+      - name: Generate first canonical lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Verify manifest was not changed
+        run: git diff --exit-code -- package.json
+
+      - name: Show resolved top-level dependency versions
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const names = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {})].sort();
+          for (const name of names) {
+            const entry = lock.packages && lock.packages[`node_modules/${name}`];
+            console.log(`${name}: ${entry?.version ?? 'MISSING'} (manifest ${pkg.dependencies?.[name] ?? pkg.devDependencies?.[name]})`);
+          }
+          NODE
+
+      - name: Clean install from generated lockfile
+        run: npm ci --no-audit --no-fund
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Review lockfile diff
+        shell: bash
+        run: |
+          git status --short
+          git diff --stat -- package-lock.json
+          test -f package-lock.json
+
+      - name: Commit verified lockfile to temporary branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: establish verified package lock baseline [lock-baseline]"
+          git push
