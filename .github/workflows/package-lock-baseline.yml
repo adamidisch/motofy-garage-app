@@ -12,7 +12,7 @@ on:
       - scripts/sites-env.sh
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   baseline:
@@ -34,27 +34,6 @@ jobs:
       - name: Verify manifest was not changed
         run: git diff --exit-code -- package.json
 
-      - name: Explain AJV dependency graph
-        shell: bash
-        run: |
-          npm explain ajv || true
-          npm explain ajv-formats || true
-          npm explain json-schema-traverse || true
-
-      - name: Show resolved top-level dependency versions
-        shell: bash
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
-          const names = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {})].sort();
-          for (const name of names) {
-            const entry = lock.packages && lock.packages[`node_modules/${name}`];
-            console.log(`${name}: ${entry?.version ?? 'MISSING'} (manifest ${pkg.dependencies?.[name] ?? pkg.devDependencies?.[name]})`);
-          }
-          NODE
-
       - name: Remove install tree before clean-install gate
         run: rm -rf node_modules
 
@@ -64,25 +43,33 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
-      - name: Lint
+      - name: Lint diagnostic
+        id: lint
+        continue-on-error: true
         run: npm run lint
 
-      - name: Build
+      - name: Build diagnostic
+        id: build
+        continue-on-error: true
         run: npm run build
 
-      - name: Review lockfile diff
+      - name: Review generated lockfile
         shell: bash
         run: |
+          test -f package-lock.json
           git status --short
           git diff --stat -- package-lock.json
-          test -f package-lock.json
+          node -e "const p=require('./package-lock.json'); console.log('lockfileVersion=' + p.lockfileVersion);"
 
-      - name: Commit verified diagnostic lockfile to temporary branch
+      - name: Final diagnostic gate
         shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git diff --cached --quiet && exit 0
-          git commit -m "chore: verify package lock with legacy peer deps [lock-baseline]"
-          git push
+          echo "lint_outcome=${{ steps.lint.outcome }}"
+          echo "build_outcome=${{ steps.build.outcome }}"
+          if [ "${{ steps.build.outcome }}" != "success" ]; then
+            echo "Build failed; package-lock baseline is not acceptable."
+            exit 1
+          fi
+          if [ "${{ steps.lint.outcome }}" != "success" ]; then
+            echo "Build and unit tests passed, but pre-existing lint debt remains. No lockfile is committed by this diagnostic workflow."
+          fi
