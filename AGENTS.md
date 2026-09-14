@@ -1,17 +1,32 @@
 # Motofy Garage — Agent Instructions
 
-This file is the default operating guide for any coding agent working on Motofy.
+This is the default operating guide for any coding agent working on Motofy.
 `CLAUDE.md` remains in the repository as a fuller historical/reference document.
+
+## Read order
+
+Before functional work:
+
+1. Read `CURRENT_STATE.md`.
+2. Read this `AGENTS.md`.
+3. Read only the source files directly relevant to the task and their immediate dependencies.
+4. Read `CLAUDE.md` only when deeper historical or architectural context is genuinely needed.
+5. Read `DEPLOYMENT.md` only for release/deployment work.
+
+Do not reread the whole repository by default.
 
 ## Current source of truth
 
 - Repository: `adamidisch/motofy-garage-app`
 - Canonical development branch: `main`
-- Current app line: Motofy v2.2.0
-- GitHub `main` is the code source of truth.
-- A merge to GitHub is not proof that the OpenAI Sites deployment was refreshed.
-- Deployment details and release procedure: `DEPLOYMENT.md`.
-- Do not use old Vercel deployments as the Motofy test target.
+- App semantic version: Motofy `v2.2.0`
+- Current verified live Sites revision: `v75`
+- Current operational snapshot: `CURRENT_STATE.md`
+- Release/deployment procedure: `DEPLOYMENT.md`
+
+Important: GitHub `main` and live Sites are separate states. A merge to GitHub is not proof that Sites was refreshed.
+
+There is currently a documented temporary mismatch: live v75 contains the verified AI Name Normalizer behavior while the exact v75 deployment snapshot is not exposed as a normal current GitHub commit. Preserve that behavior during reconciliation. Never overwrite the live v75 feature set by assuming older `main` code is equivalent.
 
 ## Product principle
 
@@ -44,7 +59,7 @@ The vehicle registration plate is the mechanic's fastest primary identifier and 
 
 ### Planned voice input
 
-Voice is a planned core input mode for Motofy alongside camera, OCR and AI. It should reduce typing for actions such as notes, job updates, parts information and other garage workflow input.
+Voice is a planned core input mode for Motofy alongside camera, OCR and AI. It should reduce typing for notes, job updates, parts information and other garage workflow input.
 
 Voice must remain optional and should not create a separate complicated interaction model. Prefer short natural commands or dictation that map into existing Motofy actions and fields.
 
@@ -111,6 +126,18 @@ If a known plate is scanned again:
 - keep scan readings separately
 - surface conflicts to the UI for confirmation
 
+## AI Name Normalizer preservation rule
+
+Live Sites v75 has verified AI Name Normalizer behavior. See `CURRENT_STATE.md` for the exact current behavior.
+
+The branch `feature/ai-name-normalizer` contains useful implementation work but diverges from the current UI baseline.
+
+- Never merge that branch wholesale into `main`.
+- Reconcile only the verified Name Normalizer functionality onto the current `main` UI baseline.
+- Preserve deploy-74/v75 UI behavior while doing so.
+- Typed-name fallback must continue to work when Gemini fails.
+- Logout must clear the greeting state correctly.
+
 ## Scan path
 
 `POST /api/scan` receives:
@@ -140,7 +167,7 @@ For each task:
 
 1. Read the task and identify the smallest likely file set.
 2. Read only those files and their direct dependencies.
-3. Check this `AGENTS.md` first.
+3. Check `CURRENT_STATE.md` and this `AGENTS.md` first.
 4. Open `CLAUDE.md` only if the task touches architecture, deployment, scan internals or historical decisions not covered here.
 5. Preserve existing working behavior unless the task explicitly changes it.
 6. Make the smallest safe diff.
@@ -161,6 +188,8 @@ If the baseline changed since the previous task, verify the relevant files again
 - Do not merge or deploy unrelated work.
 - Do not expose secrets to the browser.
 - Do not replace real data paths with hard-coded demo results.
+- Do not merge `feature/ai-name-normalizer` wholesale.
+- Do not call a GitHub change LIVE until the intended Sites deployment has been published and smoke-tested.
 
 ## Verification
 
@@ -171,11 +200,13 @@ Repository-wide verification when justified:
 ```bash
 npm run lint
 npm run build
+npm test
 ```
 
 For mobile/UI changes, verify the affected flow on an iPhone-sized viewport.
 For scan changes, verify success, cancel/retry and API failure states.
 For overlays, verify outside-tap and Escape behavior where applicable.
+For Name Normalizer changes, verify login normalization, Settings rename normalization, fallback behavior and logout greeting cleanup.
 
 ## Completion format for agents
 
