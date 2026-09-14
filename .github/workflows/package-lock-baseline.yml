@@ -28,8 +28,8 @@ jobs:
         with:
           node-version: 22.13.0
 
-      - name: Generate first canonical lockfile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Resolve dependencies and generate lockfile
+        run: npm install --ignore-scripts --no-audit --no-fund
 
       - name: Verify manifest was not changed
         run: git diff --exit-code -- package.json
@@ -46,7 +46,16 @@ jobs:
             const entry = lock.packages && lock.packages[`node_modules/${name}`];
             console.log(`${name}: ${entry?.version ?? 'MISSING'} (manifest ${pkg.dependencies?.[name] ?? pkg.devDependencies?.[name]})`);
           }
+          console.log('\nAJV-related lock entries:');
+          for (const [path, entry] of Object.entries(lock.packages || {})) {
+            if (/node_modules\/(ajv|ajv-formats|json-schema-traverse)$/.test(path)) {
+              console.log(`${path}: ${entry?.version ?? 'MISSING'}`);
+            }
+          }
           NODE
+
+      - name: Remove install tree before clean-install gate
+        run: rm -rf node_modules
 
       - name: Clean install from generated lockfile
         run: npm ci --no-audit --no-fund
