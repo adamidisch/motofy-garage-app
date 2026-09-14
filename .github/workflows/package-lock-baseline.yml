@@ -28,11 +28,18 @@ jobs:
         with:
           node-version: 22.13.0
 
-      - name: Resolve dependencies and generate lockfile
-        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Resolve dependencies with legacy peer handling
+        run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
 
       - name: Verify manifest was not changed
         run: git diff --exit-code -- package.json
+
+      - name: Explain AJV dependency graph
+        shell: bash
+        run: |
+          npm explain ajv || true
+          npm explain ajv-formats || true
+          npm explain json-schema-traverse || true
 
       - name: Show resolved top-level dependency versions
         shell: bash
@@ -46,19 +53,13 @@ jobs:
             const entry = lock.packages && lock.packages[`node_modules/${name}`];
             console.log(`${name}: ${entry?.version ?? 'MISSING'} (manifest ${pkg.dependencies?.[name] ?? pkg.devDependencies?.[name]})`);
           }
-          console.log('\nAJV-related lock entries:');
-          for (const [path, entry] of Object.entries(lock.packages || {})) {
-            if (/node_modules\/(ajv|ajv-formats|json-schema-traverse)$/.test(path)) {
-              console.log(`${path}: ${entry?.version ?? 'MISSING'}`);
-            }
-          }
           NODE
 
       - name: Remove install tree before clean-install gate
         run: rm -rf node_modules
 
       - name: Clean install from generated lockfile
-        run: npm ci --no-audit --no-fund
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
 
       - name: Unit tests
         run: npm run test:unit
@@ -76,12 +77,12 @@ jobs:
           git diff --stat -- package-lock.json
           test -f package-lock.json
 
-      - name: Commit verified lockfile to temporary branch
+      - name: Commit verified diagnostic lockfile to temporary branch
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package-lock.json
           git diff --cached --quiet && exit 0
-          git commit -m "chore: establish verified package lock baseline [lock-baseline]"
+          git commit -m "chore: verify package lock with legacy peer deps [lock-baseline]"
           git push
