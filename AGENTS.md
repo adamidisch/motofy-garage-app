@@ -33,6 +33,15 @@ Primary flow:
 
 Typing is a fallback, not the primary path.
 
+### Plate-first vehicle identity
+
+The vehicle registration plate is the mechanic's fastest primary identifier and must be visually prioritised wherever a vehicle is shown.
+
+- Show the plate first and make it immediately scannable in vehicle lists, work/job lists, search results, reminders, vehicle records and other vehicle-related UI.
+- Do not bury the plate below customer name, make/model or job text.
+- Customer name, make/model, status and other metadata are secondary to the plate in vehicle-identification contexts.
+- Preserve this hierarchy unless a specific screen has a strong reason not to and the user explicitly approves the exception.
+
 ### Planned voice input
 
 Voice is a planned core input mode for Motofy alongside camera, OCR and AI. It should reduce typing for actions such as notes, job updates, parts information and other garage workflow input.
@@ -83,7 +92,10 @@ If more architectural history is needed for a task, consult `CLAUDE.md` selectiv
 
 - Every read and write must be scoped by `garage_id`.
 - The UI currently works against the repository layer in `lib/data/`.
-- Supabase should replace that implementation without forcing UI rewrites.
+- **`lib/data/schema.mjs` is the target Motofy domain schema and the source of truth for the shape the UI is being built against.**
+- The existing Supabase `Garage-App` public schema predates parts of the current repository schema and must not be treated as the final domain model merely because tables already exist there.
+- Do not reshape the app to fit legacy Supabase columns. Reconcile Supabase to the target repository schema through an explicit reviewed migration when that integration phase begins.
+- Supabase should replace the repository implementation without forcing UI rewrites.
 - `jobs` and `notes` belong to a vehicle. Do not duplicate `customer_id` there.
 - Stored mileage is numeric (`mileage_km`).
 - Plates are unique per garage using the normalized/folded plate key.
