@@ -44,8 +44,9 @@ Canonical development branch: `main`
 Current functional reference:
 
 - latest known functional UI baseline on `main`: `c5c94476f0e08db32cb5e4fcc2a1a31909d5ea08` — plate-first hierarchy and semantic colors
-- newer `main` commits may be documentation-only agent/current-state updates
+- newer `main` commits are documentation/repository-hygiene updates unless explicitly described otherwise
 - package semantic version is `2.2.0`
+- package identity is `motofy-garage-app`
 - when an exact current `main` SHA is needed read the branch head directly from GitHub rather than copying an older SHA from this document
 - `main` is currently not protected
 - current `main` has no authoritative CI status checks configured
@@ -80,7 +81,8 @@ The baseline audit found these items that must be resolved before calling GitHub
 2. **Stale in-code version constant.** `app/page.tsx` still contains `APP_VERSION = "2.1.11"` and `APP_RELEASE = "Phase 1"`. `app/layout.tsx` currently masks that stale text with CSS pseudo-content showing `v2.2.0`. This must be replaced by one real version source rather than a visual override.
 3. **Name Normalizer reconciliation.** Current `main` does not contain the clean `/api/name` + client/core/test integration represented by live v75.
 4. **Workflow-store audit fixes.** `v2.2.0-audit` contains useful unmerged validation fixes and tests that need targeted review before the branch can be archived.
-5. **Starter/legacy residue.** Unused starter assets, the unused optional ChatGPT auth helper and legacy D1/Drizzle reference files should be removed or isolated only after their build/hosting dependencies are verified.
+5. **Remaining legacy scaffold.** The obviously unused ChatGPT starter auth helper and generic starter icons have been removed. The D1/Drizzle reference scaffold remains intentionally until a deterministic clean build proves which hosting/build pieces can be safely isolated or removed.
+6. **Dependency pruning.** The dependency list still includes starter-era packages. Do not remove them blindly. Run a static import audit after the lockfile is restored and verify build/tests after pruning.
 
 Do not solve these by wholesale branch merges.
 
@@ -138,6 +140,8 @@ Current Supabase public tables are legacy/pre-target:
 
 A private `vehicle-photos` storage bucket also exists.
 
+The Supabase project currently has **no recorded migration history**, no development database branches and no Edge Functions. The next database changes must start a proper reviewed migration history rather than continuing ad-hoc schema edits.
+
 The target application-domain schema source of truth is:
 
 `lib/data/schema.mjs`
@@ -174,6 +178,8 @@ Do not connect the UI to this schema until a reviewed Supabase migration/securit
 - `POST /api/scan` — vehicle-scan compatibility alias
 
 Secrets remain server-side only.
+
+At the 2026-09-14 audit the configured providers/API shapes were still current: Gemini `gemini-3.8-flash` through the Interactions API and Plate Recognizer Snapshot Cloud with Cyprus region `cy`.
 
 ### Name normalization
 
@@ -217,6 +223,7 @@ Do not publish a new Motofy Sites release from `main` until these are complete:
 2. review and selectively port valid `v2.2.0-audit` workflow-store fixes/tests
 3. restore and commit a deterministic dependency lockfile
 4. consolidate the real app version source and remove the CSS version mask
-5. run targeted tests then full lint/build/test from the reconciled source
-6. perform mobile UI smoke testing
-7. record the exact final `main` SHA and publish that exact state
+5. run a dependency/import audit and remove confirmed unused starter dependencies/files
+6. run targeted tests then full lint/build/test from the reconciled source
+7. perform mobile UI smoke testing
+8. record the exact final `main` SHA and publish that exact state
