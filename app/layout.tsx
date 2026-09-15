@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./v220-polish.css";
+import PwaRegister from "./pwa-register";
 
 export const metadata: Metadata = {
   title: "Motofy Garage",
@@ -50,6 +51,7 @@ export default function RootLayout({
             font-size: 10px;
           }
         `}</style>
+        <PwaRegister />
         {children}
       </body>
     </html>
