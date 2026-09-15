@@ -1,0 +1,35 @@
+name: QA browser and Lighthouse validation (temporary)
+
+on:
+  push:
+    branches:
+      - qa/react-playwright-knip-lighthouse-serwist
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Production build
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright Chromium smoke
+        run: npm run test:e2e:chromium
+
+      - name: Lighthouse CI baseline
+        run: npx lhci autorun --config=./lighthouserc.cjs
