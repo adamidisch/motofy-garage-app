@@ -1,3 +1,4 @@
+import path from "node:path";
 import { serwist } from "@serwist/vite";
 import vinext from "vinext";
 import { defineConfig } from "vite";
@@ -8,6 +9,7 @@ const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
 
 const { d1, r2 } = hostingConfig;
+const clientDist = path.resolve(process.cwd(), "dist/client");
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
@@ -58,8 +60,8 @@ export default defineConfig(async ({ command }) => {
       serwist({
         disable: command !== "build",
         swSrc: "app/sw.ts",
-        swDest: "dist/client/sw.js",
-        globDirectory: "dist/client",
+        swDest: path.join(clientDist, "sw.js"),
+        globDirectory: clientDist,
         globPatterns: ["**/*.{js,css,ico,png,svg,webp,json,webmanifest,woff,woff2}"],
         injectionPoint: "self.__SW_MANIFEST",
         rollupFormat: "iife",
