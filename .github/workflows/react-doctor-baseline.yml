@@ -1,0 +1,21 @@
+name: React Doctor baseline
+
+on:
+  push:
+    branches:
+      - qa/react-doctor-baseline-temp
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: React Doctor read-only audit
+        run: npx --yes react-doctor@0.9.14 --no-telemetry
