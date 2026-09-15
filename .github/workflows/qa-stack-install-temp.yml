@@ -1,0 +1,41 @@
+name: QA stack install (temporary)
+
+on:
+  push:
+    branches:
+      - qa/react-playwright-knip-lighthouse-serwist
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pinned QA and PWA tooling
+        run: |
+          npm install --save-dev --ignore-scripts --no-audit --no-fund \
+            react-doctor@0.9.14 \
+            @playwright/test@1.63.0 \
+            knip@6.35.1 \
+            @lhci/cli@0.15.1 \
+            @serwist/vite@9.5.12 \
+            @serwist/window@9.5.12 \
+            serwist@9.5.12
+      - name: Commit dependency lock update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No dependency changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: add QA and PWA tooling dependencies"
+          git push origin HEAD:qa/react-playwright-knip-lighthouse-serwist
