@@ -1,0 +1,38 @@
+name: QA final validation (temporary)
+
+on:
+  push:
+    branches:
+      - qa/react-playwright-knip-lighthouse-serwist
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Production build with Serwist
+        run: npm run build
+
+      - name: Verify PWA output
+        run: npm run pwa:verify
+
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Playwright browser tests
+        run: npm run test:e2e
+
+      - name: Lighthouse CI baseline
+        run: npx lhci autorun --config=./lighthouserc.cjs
