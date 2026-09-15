@@ -1,3 +1,4 @@
+import { serwist } from "@serwist/vite";
 import vinext from "vinext";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
@@ -33,7 +34,7 @@ const localBindingConfig = {
     : [],
 };
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ command }) => {
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= "false";
@@ -54,6 +55,15 @@ export default defineConfig(async () => {
     plugins: [
       vinext(),
       sites(),
+      serwist({
+        disable: command !== "build",
+        swSrc: "app/sw.ts",
+        swDest: "dist/client/sw.js",
+        globDirectory: "dist/client",
+        globPatterns: ["**/*.{js,css,ico,png,svg,webp,json,webmanifest,woff,woff2}"],
+        injectionPoint: "self.__SW_MANIFEST",
+        rollupFormat: "iife",
+      }),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
