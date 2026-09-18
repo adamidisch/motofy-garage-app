@@ -117,48 +117,19 @@ async function refreshSession(cfg: ReturnType<typeof config>, refreshToken: stri
   return { access_token: value.access_token, refresh_token: value.refresh_token, expires_in: value.expires_in };
 }
 
-async function ensureGarage(cfg: ReturnType<typeof config>, session: Session, displayName: string): Promise<string | null> {
+async function ensureGarage(cfg: ReturnType<typeof config>, session: Session, _displayName: string): Promise<string | null> {
   if (!cfg) return null;
-  const userResponse = await fetch(`${cfg.url}/auth/v1/user`, {
+
+  // Garage membership is created transactionally by the Supabase auth-user
+  // trigger. Resolve it with the signed-in user's JWT so RLS is evaluated for
+  // the correct user instead of relying on service-key behaviour.
+  const memberResponse = await fetch(`${cfg.url}/rest/v1/garage_members?select=garage_id&limit=1`, {
     headers: { apikey: cfg.anon, Authorization: `Bearer ${session.access_token}` },
   });
-  if (!userResponse.ok) return null;
-  const user = await userResponse.json() as { id?: string };
-  if (!user.id) return null;
-
-  const headers = adminHeaders(cfg.service, true);
-  const memberResponse = await fetch(`${cfg.url}/rest/v1/garage_members?select=garage_id&user_id=eq.${encodeURIComponent(user.id)}&limit=1`, {
-    headers,
-  });
   if (!memberResponse.ok) return null;
+
   const members = await memberResponse.json() as Array<{ garage_id?: string }>;
-  if (members[0]?.garage_id) return members[0].garage_id;
-
-  const garageResponse = await fetch(`${cfg.url}/rest/v1/garages`, {
-    method: "POST",
-    headers: { ...headers, Prefer: "return=representation" },
-    body: JSON.stringify({ name: displayName.slice(0, 120) || "Garage" }),
-  });
-  if (!garageResponse.ok) return null;
-  const garages = await garageResponse.json() as Array<{ id?: string }>;
-  const garageId = garages[0]?.id;
-  if (!garageId) return null;
-
-  const linkResponse = await fetch(`${cfg.url}/rest/v1/garage_members`, {
-    method: "POST",
-    headers: { ...headers, Prefer: "return=minimal" },
-    body: JSON.stringify({ garage_id: garageId, user_id: user.id, role: "owner" }),
-  });
-  if (linkResponse.ok) return garageId;
-
-  // If two first-login requests race, another request may already have linked
-  // this user. Re-read membership before treating the login as a failure.
-  const retryMemberResponse = await fetch(`${cfg.url}/rest/v1/garage_members?select=garage_id&user_id=eq.${encodeURIComponent(user.id)}&limit=1`, {
-    headers,
-  });
-  if (!retryMemberResponse.ok) return null;
-  const retryMembers = await retryMemberResponse.json() as Array<{ garage_id?: string }>;
-  return retryMembers[0]?.garage_id ?? null;
+  return members[0]?.garage_id ?? null;
 }
 
 async function restRequest(cfg: ReturnType<typeof config>, token: string, path: string, init: RequestInit = {}) {
