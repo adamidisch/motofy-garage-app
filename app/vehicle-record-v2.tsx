@@ -50,6 +50,7 @@ type MainTab = "overview" | "work" | "reminders" | "notes";
 type VisitTab = "work" | "parts" | "cost" | "photos";
 type Screen = "record" | "visit" | "checkout" | "me";
 type Reminder = { id: string; title: string; due: string; created_at: string };
+type CreationMode = "vehicle" | "customer" | "job" | "note";
 
 const REMINDER_PREFIX = "__motofy_reminder__:";
 const ARCHIVE_AUTHOR = "__motofy_vehicle_archive__";
@@ -61,10 +62,19 @@ function readDataset() {
   } catch { return null; }
 }
 
-function writeDataset(payload: Record<string, any>) {
+function scopedPayload(payload: Record<string, any>, garageId: string) {
+  const scoped = { ...payload };
+  scoped.garages = (Array.isArray(payload.garages) ? payload.garages : []).filter((row: any) => row.id === garageId);
+  for (const key of ["customers", "vehicles", "jobs", "notes"]) {
+    scoped[key] = (Array.isArray(payload[key]) ? payload[key] : []).filter((row: any) => row.garage_id === garageId);
+  }
+  return scoped;
+}
+
+function writeDataset(payload: Record<string, any>, garageId: string) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    syncRemoteState(payload);
+    syncRemoteState(scopedPayload(payload, garageId));
   } catch {}
 }
 
@@ -103,14 +113,14 @@ function persistReminder(vehicle: Vehicle, current: Reminder | null, title: stri
       updated_at: now,
     });
   }
-  writeDataset(payload);
+  writeDataset(payload, vehicle.garage_id);
 }
 
-function deleteReminder(id: string) {
+function deleteReminder(vehicle: Vehicle, id: string) {
   const payload = readDataset();
   if (!payload) return;
   payload.notes = (Array.isArray(payload.notes) ? payload.notes : []).filter((item: any) => item.id !== id);
-  writeDataset(payload);
+  writeDataset(payload, vehicle.garage_id);
 }
 
 function persistPlainNote(vehicle: Vehicle, current: Note | null, body: string) {
@@ -133,11 +143,11 @@ function persistPlainNote(vehicle: Vehicle, current: Note | null, body: string) 
       updated_at: now,
     });
   }
-  writeDataset(payload);
+  writeDataset(payload, vehicle.garage_id);
 }
 
-function deletePlainNote(id: string) {
-  deleteReminder(id);
+function deletePlainNote(vehicle: Vehicle, id: string) {
+  deleteReminder(vehicle, id);
 }
 
 function archiveVehicle(vehicle: Vehicle) {
@@ -159,17 +169,17 @@ function archiveVehicle(vehicle: Vehicle) {
   });
   payload.vehicles = (Array.isArray(payload.vehicles) ? payload.vehicles : []).filter((row: any) => row.id !== vehicle.id);
   payload.jobs = (Array.isArray(payload.jobs) ? payload.jobs : []).filter((job: any) => job.vehicle_id !== vehicle.id);
-  writeDataset(payload);
+  writeDataset(payload, vehicle.garage_id);
   return true;
 }
 
-function deleteVehiclePermanently(vehicleId: string) {
+function deleteVehiclePermanently(vehicle: Vehicle) {
   const payload = readDataset();
   if (!payload) return false;
-  payload.vehicles = (Array.isArray(payload.vehicles) ? payload.vehicles : []).filter((row: any) => row.id !== vehicleId);
-  payload.jobs = (Array.isArray(payload.jobs) ? payload.jobs : []).filter((row: any) => row.vehicle_id !== vehicleId);
-  payload.notes = (Array.isArray(payload.notes) ? payload.notes : []).filter((row: any) => row.vehicle_id !== vehicleId);
-  writeDataset(payload);
+  payload.vehicles = (Array.isArray(payload.vehicles) ? payload.vehicles : []).filter((row: any) => row.id !== vehicle.id);
+  payload.jobs = (Array.isArray(payload.jobs) ? payload.jobs : []).filter((row: any) => row.vehicle_id !== vehicle.id);
+  payload.notes = (Array.isArray(payload.notes) ? payload.notes : []).filter((row: any) => row.vehicle_id !== vehicle.id);
+  writeDataset(payload, vehicle.garage_id);
   return true;
 }
 
@@ -186,7 +196,7 @@ export default function VehicleRecordV2({
   close: () => void;
   openVehicle: (vehicleId: string) => void;
   onJobUpdate: (jobId: string, status: string) => void;
-  openCreation: (mode: string, scan?: unknown, vehicleId?: string | null, photo?: string | null) => void;
+  openCreation: (mode: CreationMode, scan?: any, vehicleId?: string | null, photo?: string | null) => void;
   vehiclePhoto: string | null;
   customerPhoto: string | null;
   onVehiclePhotoChange: (dataUrl: string) => void;
@@ -214,7 +224,7 @@ export default function VehicleRecordV2({
     storage: createBrowserStorage(),
     garageId: record.vehicle.garage_id,
     seedWhenEmpty: false,
-    onPersist: (payload) => syncRemoteState(payload),
+    onPersist: (payload) => syncRemoteState(scopedPayload(payload, record.vehicle.garage_id)),
   }), [record.vehicle.garage_id]);
 
   const workflow = job ? getJobWorkflow(job.id) : null;
@@ -310,8 +320,8 @@ export default function VehicleRecordV2({
 
         {tab === "overview" && <OverviewPanel greek={greek} vehicle={vehicle} customer={customer} job={job} reminders={reminders} notes={notes} openVisit={openVisit} setTab={setTab} setCustomerOpen={setCustomerOpen}/>} 
         {tab === "work" && <WorkPanel greek={greek} job={job} openVisit={openVisit} createJob={() => openCreation("job", null, vehicle.id)} history={record.jobs.history}/>} 
-        {tab === "reminders" && <RemindersPanel greek={greek} reminders={reminders} onAdd={() => setReminderEditor("new")} onEdit={setReminderEditor} onDelete={(id) => { deleteReminder(id); refreshReminders(); }}/>} 
-        {tab === "notes" && <NotesPanel greek={greek} notes={notes} onAdd={() => setNoteEditor("new")} onEdit={setNoteEditor} onDelete={(id) => { deletePlainNote(id); refreshNotes(); }}/>} 
+        {tab === "reminders" && <RemindersPanel greek={greek} reminders={reminders} onAdd={() => setReminderEditor("new")} onEdit={setReminderEditor} onDelete={(id) => { deleteReminder(vehicle, id); refreshReminders(); }}/>} 
+        {tab === "notes" && <NotesPanel greek={greek} notes={notes} onAdd={() => setNoteEditor("new")} onEdit={setNoteEditor} onDelete={(id) => { deletePlainNote(vehicle, id); refreshNotes(); }}/>} 
       </div>}
 
       {screen === "visit" && job && workflow && <VisitWorkspace greek={greek} job={job} workflow={workflow} visitTab={visitTab} setVisitTab={setVisitTab} updateJob={updateJob} refreshWorkflow={refreshWorkflow} openCheckout={() => setScreen("checkout")} openMe={() => setScreen("me")} vehiclePhoto={vehiclePhoto} onVehiclePhotoChange={onVehiclePhotoChange}/>} 
@@ -319,8 +329,8 @@ export default function VehicleRecordV2({
       {screen === "me" && job && workflow && <div className={ui.legacyPanel}><MotofyMePreview record={{...record, vehicle, customer, display:{...record.display, plate, title}}} job={job} workflow={workflow} lang={lang}/></div>}
     </section>
 
-    {customerOpen && <CustomerSheet greek={greek} customer={customer} customers={adminRepo.listCustomers()} vehicle={vehicle} otherVehicles={record.otherVehicles} customerPhoto={customerPhoto} close={() => setCustomerOpen(false)} onCustomerPhotoChange={onCustomerPhotoChange} linkCustomer={linkCustomer} createCustomer={createAndLinkCustomer} openVehicle={openVehicle}/>} 
-    {settingsOpen && <VehicleSettings greek={greek} vehicle={vehicle} customers={adminRepo.listCustomers()} customer={customer} close={() => { setSettingsOpen(false); setConfirmAction(null); }} save={(changes) => updateVehicle(changes)} linkCustomer={linkCustomer} confirmAction={confirmAction} setConfirmAction={setConfirmAction} archive={() => { if (archiveVehicle(vehicle)) { setSettingsOpen(false); close(); window.setTimeout(() => window.location.reload(), 0); } }} remove={() => { if (deleteVehiclePermanently(vehicle.id)) { setSettingsOpen(false); close(); window.setTimeout(() => window.location.reload(), 0); } }}/>} 
+    {customerOpen && <CustomerSheet greek={greek} customer={customer} customers={adminRepo.listCustomers()} otherVehicles={record.otherVehicles} customerPhoto={customerPhoto} close={() => setCustomerOpen(false)} onCustomerPhotoChange={onCustomerPhotoChange} linkCustomer={linkCustomer} createCustomer={createAndLinkCustomer} openVehicle={openVehicle}/>} 
+    {settingsOpen && <VehicleSettings greek={greek} vehicle={vehicle} customers={adminRepo.listCustomers()} customer={customer} close={() => { setSettingsOpen(false); setConfirmAction(null); }} save={(changes) => updateVehicle(changes)} linkCustomer={linkCustomer} confirmAction={confirmAction} setConfirmAction={setConfirmAction} archive={() => { if (archiveVehicle(vehicle)) { setSettingsOpen(false); close(); window.setTimeout(() => window.location.reload(), 0); } }} remove={() => { if (deleteVehiclePermanently(vehicle)) { setSettingsOpen(false); close(); window.setTimeout(() => window.location.reload(), 0); } }}/>} 
     {reminderEditor && <ReminderEditor greek={greek} reminder={reminderEditor === "new" ? null : reminderEditor} close={() => setReminderEditor(null)} save={(title, due) => { persistReminder(vehicle, reminderEditor === "new" ? null : reminderEditor, title, due); refreshReminders(); setReminderEditor(null); }}/>} 
     {noteEditor && <NoteEditor greek={greek} note={noteEditor === "new" ? null : noteEditor} close={() => setNoteEditor(null)} save={(body) => { persistPlainNote(vehicle, noteEditor === "new" ? null : noteEditor, body); refreshNotes(); setNoteEditor(null); }}/>} 
   </div>;
@@ -392,7 +402,7 @@ function VisitPhotos({ greek, vehiclePhoto, onVehiclePhotoChange }: { greek: boo
   return <div className={ui.panelStack}><section className={ui.visitCard}><div className={ui.sectionHead}><div><small>{greek ? "ΦΩΤΟ ΕΠΙΣΚΕΨΗΣ" : "VISIT PHOTO"}</small><h3>{greek ? "Φωτογραφία" : "Photo"}</h3></div></div><button className={ui.visitPhoto} onClick={async () => { const url = await pickPhoto(); if (url) onVehiclePhotoChange(url); }}>{vehiclePhoto ? <img src={vehiclePhoto} alt=""/> : <span><Camera size={24}/>{greek ? "Προσθήκη φωτογραφίας" : "Add photo"}</span>}</button></section></div>;
 }
 
-function CustomerSheet({ greek, customer, customers, vehicle, otherVehicles, customerPhoto, close, onCustomerPhotoChange, linkCustomer, createCustomer, openVehicle }: { greek: boolean; customer: Customer | null; customers: Customer[]; vehicle: Vehicle; otherVehicles: Vehicle[]; customerPhoto: string | null; close: () => void; onCustomerPhotoChange: (url: string) => void; linkCustomer: (id: string | null) => void; createCustomer: (name: string, phone: string) => void; openVehicle: (id: string) => void }) {
+function CustomerSheet({ greek, customer, customers, otherVehicles, customerPhoto, close, onCustomerPhotoChange, linkCustomer, createCustomer, openVehicle }: { greek: boolean; customer: Customer | null; customers: Customer[]; otherVehicles: Vehicle[]; customerPhoto: string | null; close: () => void; onCustomerPhotoChange: (url: string) => void; linkCustomer: (id: string | null) => void; createCustomer: (name: string, phone: string) => void; openVehicle: (id: string) => void }) {
   const [newName,setNewName] = useState(""); const [newPhone,setNewPhone] = useState(""); const [mode,setMode] = useState<"view"|"pick"|"new">(customer ? "view" : "pick");
   return <div className={ui.backdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}><section className={ui.sheet}><header><div><small>{greek ? "ΠΕΛΑΤΗΣ" : "CUSTOMER"}</small><h3>{customer?.name ?? (greek ? "Σύνδεση πελάτη" : "Link customer")}</h3></div><button onClick={close}><X size={18}/></button></header>{mode === "view" && customer && <><button className={ui.customerHero} onClick={async () => { const url = await pickPhoto(); if (url) onCustomerPhotoChange(url); }}>{customerPhoto ? <img src={customerPhoto} alt={customer.name}/> : <span><UserRound size={25}/></span>}<div><strong>{customer.name}</strong><small>{customer.phone ?? (greek ? "Χωρίς τηλέφωνο" : "No phone")}</small></div></button><div className={ui.sheetActions}>{customer.phone && <a href={`tel:${customer.phone.replaceAll(" ","")}`}><Phone size={16}/>{greek ? "Κλήση" : "Call"}</a>}<button onClick={() => setMode("pick")}><UserRound size={16}/>{greek ? "Αλλαγή πελάτη" : "Change customer"}</button></div>{otherVehicles.length > 0 && <section className={ui.otherVehicles}><p>{greek ? "ΑΛΛΑ ΟΧΗΜΑΤΑ" : "OTHER VEHICLES"}</p>{otherVehicles.map((item) => <button key={item.id} onClick={() => { close(); openVehicle(item.id); }}><CarFront size={15}/><span>{vehicleName(item,item.plate)}</span><em>{item.plate}</em><ChevronRight size={15}/></button>)}</section>}</>}{mode === "pick" && <section className={ui.pickList}><button className={ui.newCustomerButton} onClick={() => setMode("new")}><Plus size={16}/>{greek ? "Νέος πελάτης" : "New customer"}</button>{customers.map((item) => <button key={item.id} className={customer?.id === item.id ? ui.selectedCustomer : ""} onClick={() => { linkCustomer(item.id); close(); }}><UserRound size={16}/><span><strong>{item.name}</strong><small>{item.phone ?? ""}</small></span>{customer?.id === item.id && <Check size={15}/>}</button>)}{customer && <button className={ui.unlinkButton} onClick={() => { linkCustomer(null); close(); }}><X size={15}/>{greek ? "Αφαίρεση πελάτη από το όχημα" : "Unlink customer"}</button>}</section>}{mode === "new" && <section className={ui.form}><label>{greek ? "Όνομα" : "Name"}<input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)}/></label><label>{greek ? "Τηλέφωνο" : "Phone"}<input inputMode="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)}/></label><div><button onClick={() => setMode("pick")}>{greek ? "Πίσω" : "Back"}</button><button className={ui.saveButton} onClick={() => { createCustomer(newName,newPhone); close(); }} disabled={!newName.trim()}><Check size={15}/>{greek ? "Προσθήκη" : "Add"}</button></div></section>}</section></div>;
 }
