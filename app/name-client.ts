@@ -63,17 +63,88 @@ export function clearGreeting() {
   localStorage.removeItem(GARAGE_ID_KEY);
 }
 
-export async function loginWithPIN(name: string, pin: string): Promise<{ garageId: string }> {
+function showAccountCreatedNotice() {
+  if (typeof document === "undefined") return;
+  document.getElementById("motofy-account-created-notice")?.remove();
+
+  const notice = document.createElement("div");
+  notice.id = "motofy-account-created-notice";
+  notice.setAttribute("role", "status");
+  notice.setAttribute("aria-live", "polite");
+  Object.assign(notice.style, {
+    position: "fixed",
+    left: "50%",
+    top: "20px",
+    transform: "translate(-50%, -10px)",
+    zIndex: "2147483647",
+    display: "flex",
+    alignItems: "center",
+    gap: "11px",
+    width: "min(360px, calc(100vw - 28px))",
+    padding: "12px 14px",
+    border: "1px solid rgba(30, 88, 71, .16)",
+    borderRadius: "16px",
+    background: "rgba(249, 253, 251, .97)",
+    color: "#17362d",
+    boxShadow: "0 18px 44px rgba(34, 68, 92, .16), 0 2px 8px rgba(34, 68, 92, .08)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    fontFamily: "inherit",
+    opacity: "0",
+    transition: "opacity .2s ease, transform .24s ease",
+  });
+
+  const icon = document.createElement("span");
+  icon.textContent = "✓";
+  Object.assign(icon.style, {
+    display: "grid",
+    placeItems: "center",
+    flex: "0 0 28px",
+    width: "28px",
+    height: "28px",
+    borderRadius: "9px",
+    background: "#e5f5ef",
+    color: "#14785f",
+    fontSize: "15px",
+    fontWeight: "700",
+  });
+
+  const copy = document.createElement("div");
+  copy.style.minWidth = "0";
+  const title = document.createElement("div");
+  title.textContent = "Ο λογαριασμός δημιουργήθηκε";
+  Object.assign(title.style, { fontSize: "13px", fontWeight: "650", lineHeight: "1.25" });
+  const subtitle = document.createElement("div");
+  subtitle.textContent = "Καλώς ήρθες στο Motofy.";
+  Object.assign(subtitle.style, { marginTop: "2px", fontSize: "12px", lineHeight: "1.3", color: "#607c73" });
+  copy.append(title, subtitle);
+  notice.append(icon, copy);
+  document.body.appendChild(notice);
+
+  requestAnimationFrame(() => {
+    notice.style.opacity = "1";
+    notice.style.transform = "translate(-50%, 0)";
+  });
+  window.setTimeout(() => {
+    notice.style.opacity = "0";
+    notice.style.transform = "translate(-50%, -8px)";
+    window.setTimeout(() => notice.remove(), 260);
+  }, 3200);
+}
+
+export async function loginWithPIN(name: string, pin: string): Promise<{ garageId: string; created: boolean }> {
   const response = await fetch("/api/auth/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ name: name.trim(), pin }),
   });
-  const data = await response.json().catch(() => ({})) as { garageId?: string; error?: string };
+  const data = await response.json().catch(() => ({})) as { garageId?: string; created?: boolean; error?: string };
   if (!response.ok || typeof data.garageId !== "string") {
     throw new Error(data.error || "Η σύνδεση δεν ολοκληρώθηκε.");
   }
-  return { garageId: data.garageId };
+  const created = data.created === true;
+  if (created) showAccountCreatedNotice();
+  return { garageId: data.garageId, created };
 }
 
 export async function loadRemoteState(): Promise<RemoteState> {
