@@ -1,86 +1,8 @@
 # Motofy Garage
 
-Motofy is a mobile-first garage workspace built around minimum mechanic input. The product prioritises plate-first vehicle identity with camera, OCR/AI, planned voice input, sensible defaults and one-tap confirmation instead of traditional data-entry-heavy garage software.
+Mobile-first workspace for a car garage. The product is in Greek and provides demo pages for vehicles, customers and jobs plus a camera-first vehicle scan flow.
 
-## Start here
-
-Before changing code read these files in order:
-
-1. `CURRENT_STATE.md` — what is live, what is on GitHub and known reconciliation work
-2. `AGENTS.md` — product rules, architecture guardrails and coding-agent workflow
-3. task-relevant source files only
-4. `CLAUDE.md` only for deeper historical context
-5. `DEPLOYMENT.md` only for release/deployment work
-
-Do not treat an old branch, old deployment or historical document as the current source of truth.
-
-## Current version vocabulary
-
-- Motofy application semantic version: `v2.2.0`
-- Current verified OpenAI Sites deployment revision: `v75`
-
-These numbers describe different things. `v75` is a Sites deployment revision and does not mean Motofy `v2.75`.
-
-See `CURRENT_STATE.md` for the current GitHub/live reconciliation status.
-
-## Repository map
-
-- `app/` — mobile UI, login/demo flow, scanner UI and workshop screens
-- `lib/data/` — current repository layer and target Motofy domain schema
-- `lib/scan-core.mjs` — framework-neutral scan logic
-- `worker/index.ts` — server-side API routing for vehicle scanning
-- `tests/` — repository, scan and vehicle-record tests currently present on `main`
-- `public/` — Motofy icons, manifest and static assets
-- `.openai/hosting.json` — temporary OpenAI Sites hosting bindings
-- `build/` and `scripts/` — Sites build/install helpers
-- `db/`, `drizzle/` and `drizzle.config.ts` — legacy D1/SQLite reference only, not the Motofy persistence target
-
-## Architecture
-
-### Persistence and auth
-
-The decided database/auth/RLS platform is the existing Supabase project `Garage-App` in `eu-west-1`.
-
-The application is not yet using Supabase as its active persistence layer. The current UI works through `lib/data/` and browser-local demo persistence.
-
-The target domain-schema source of truth is:
-
-`lib/data/schema.mjs`
-
-The existing Supabase public schema predates that model and must be reconciled through an explicit reviewed migration. Do not reshape the app to fit legacy database columns.
-
-### Hosting
-
-- Current development/live preview hosting: OpenAI Sites
-- Future production hosting target: user-owned Cloudflare account
-- Vercel: **not used for Motofy**
-
-Do not create or deploy a Motofy Vercel project unless the architecture decision is explicitly changed.
-
-### AI scan
-
-Server-side scan flow currently uses:
-
-- Plate Recognizer Snapshot Cloud for fast plate recognition
-- Gemini for vehicle make/model and plate fallback
-
-Relevant routes on current GitHub `main`:
-
-- `POST /api/scan/plate`
-- `POST /api/scan/vehicle`
-- `POST /api/scan` — compatibility alias for vehicle scan
-
-API keys must remain deployment secrets. Never put them in browser code, Git history or committed `.env` files.
-
-### AI Name Normalizer
-
-The verified live Sites v75 includes AI Name Normalizer behavior that is not yet cleanly reconciled into current GitHub `main`.
-
-The development branch `feature/ai-name-normalizer` contains useful implementation work but must **not** be merged wholesale because it diverges from the current UI baseline.
-
-See `CURRENT_STATE.md` and `AGENTS.md` before touching this feature.
-
-## Local development
+## Run locally
 
 Requires Node.js 22.13 or newer.
 
@@ -89,45 +11,84 @@ npm install
 npm run dev
 ```
 
-### Important dependency-lock status
-
-A committed `package-lock.json` is currently missing from the repository even though `scripts/install-ci.sh` and `npm ci` expect one.
-
-Do **not** claim a deterministic clean install until the lockfile has been regenerated from the intended dependency set, reviewed and committed.
-
-This is a baseline cleanup task and should be completed before formal CI is treated as authoritative.
-
-## Verification
-
-Targeted checks should be run first. Repository-wide checks when justified:
+Validate a change with:
 
 ```bash
 npm run lint
 npm run build
-npm test
 ```
 
-Do not repeatedly run expensive full builds when a targeted test can answer the question.
+## Architecture
 
-## Release discipline
+- `app/` — interface and mobile scan flow
+- `worker/index.ts` — `POST /api/scan` API
+- `db/` and `drizzle/` — legacy/reference D1 schema only; Supabase is the decided persistence layer
+- `.openai/hosting.json` — temporary OpenAI Sites development-hosting bindings
 
-A GitHub commit is not a live deployment.
+The scanner sends the selected image to a server-side AI integration. Configure its key only as a deployment secret; never put it in the browser bundle, Git history or a committed `.env` file.
 
-For every functional release record separately:
+For product rules and the current scan-integration state, read [CLAUDE.md](CLAUDE.md) before making a change. For the source-of-truth, live-site and release procedure, read [DEPLOYMENT.md](DEPLOYMENT.md). A merge to GitHub `main` is not proof that the OpenAI Sites deployment has been refreshed.
 
-- application semantic version
-- GitHub `main` SHA
-- OpenAI Sites deployment revision
-- live URL
-- build/test result
-- live smoke-test result
+## Workspace auth headers
 
-Only call a change **LIVE** after the intended source has actually been published and smoke-tested.
+OpenAI workspace sites can read the current user's email from `oai-authenticated-user-email`.
 
-## Legacy and experimental work
+SIWC-authenticated workspace sites may also receive `oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty `name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by `oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
 
-The repository still contains historical branches created during Claude, Abacus, Grok and earlier Motofy work. They are references, not alternate sources of truth.
+Treat the full name as optional and fall back to email when it is absent:
 
-Current special-hold branches are documented in `CURRENT_STATE.md`. Old merged/release branches should not be used as a coding baseline.
+```tsx
+import { headers } from "next/headers";
 
-Do not merge experimental branches into `main` without a targeted comparison against current `main`.
+export default async function Home() {
+  const requestHeaders = await headers();
+  const email = requestHeaders.get("oai-authenticated-user-email");
+  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
+  const fullName =
+    encodedFullName &&
+    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
+      "percent-encoded-utf-8"
+      ? decodeURIComponent(encodedFullName)
+      : null;
+
+  const displayName = fullName ?? email;
+  // ...
+}
+```
+
+## Optional Dispatch-Owned ChatGPT Sign-In
+
+Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs optional or required ChatGPT sign-in:
+
+- Use `getChatGPTUser()` for optional signed-in UI.
+- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send anonymous visitors through Sign in with ChatGPT.
+- In a Server Component, start sign-in with `<a href={chatGPTSignInPath(returnTo)} target="_top">`. The auth helper module is server-only; do not import it into a Client Component.
+- Do not use `fetch`, XHR, a client-side router, or a framework link that can prefetch the sign-in route. SIWC must start as a top-level navigation.
+- Never request the AuthAPI authorization endpoint directly. The dispatch-owned `/signin-with-chatgpt` route must start the SIWC flow.
+- Use `chatGPTSignOutPath(returnTo)` for browser sign-out links or actions.
+- Pass a same-origin relative `returnTo` path for the destination after sign-in or sign-out. The helper validates and safely encodes it.
+- Mark protected pages with `export const dynamic = "force-dynamic"` because they depend on per-request identity headers.
+
+Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the OAuth cookies, and identity header injection. Do not implement app routes for those reserved paths. Routes that do not import and call the helper remain anonymous-compatible.
+
+SIWC establishes identity only; it does not prove workspace membership. Use the Sites hosting platform's access policy controls for workspace-wide restrictions, or enforce explicit server-side membership or allowlist checks.
+
+Use SIWC for account pages, user-specific dashboards, saved records, and write actions tied to the current ChatGPT user. Leave public content anonymous.
+
+## Diagnostic Commands
+
+- `npm run install:ci`: perform the one bounded lockfile install
+- `npm run dev`: start the Vite/Vinext development server
+- `npm run build`: build the deployable Sites artifact
+- `npm run start`: start the built Vinext application
+- `npm test`: build and verify the rendered development-preview metadata
+- `npm run db:generate`: generate Drizzle migrations after schema changes
+
+Use build commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
+
+The timeout defaults can be overridden for a controlled canary with `SITES_INSTALL_TIMEOUT`, `SITES_INSTALL_KILL_AFTER`, `SITES_BUILD_TIMEOUT`, and `SITES_BUILD_KILL_AFTER`. A timeout fails the command; the helpers never retry an unchanged install or build.
+
+## Learn More
+
+- [vinext Documentation](https://github.com/cloudflare/vinext)
+- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)

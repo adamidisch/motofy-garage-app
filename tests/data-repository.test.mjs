@@ -359,6 +359,37 @@ test("every seeded record carries the garage id", () => {
   }
 });
 
+test("demo seed contains enough linked records for a useful walkthrough", () => {
+  const seed = createSeed({ now: FIXED_NOW });
+  assert.ok(seed.customers.length >= 10);
+  assert.ok(seed.vehicles.length >= 10);
+  assert.ok(seed.jobs.length >= 10);
+  assert.ok(seed.notes.length >= 10);
+});
+
+test("an absent demo garage is seeded without replacing another garage", () => {
+  const storage = createMemoryStorage();
+  const privateGarage = createRepository({
+    storage,
+    garageId: "gar_private",
+    now: () => FIXED_NOW,
+    seedWhenEmpty: false,
+  });
+  privateGarage.createVehicle({ plate: "ABC 101", make: "Honda" });
+
+  const demo = createRepository({
+    storage,
+    garageId: DEMO_GARAGE_ID,
+    now: () => FIXED_NOW,
+    seedWhenEmpty: true,
+    seedGarageWhenEmpty: true,
+  });
+
+  assert.ok(demo.listVehicles().length >= 10);
+  const privateAgain = createRepository({ storage, garageId: "gar_private", now: () => FIXED_NOW, seedWhenEmpty: false });
+  assert.equal(privateAgain.findVehicleByPlate("ABC 101")?.make, "Honda");
+});
+
 /* ------------------------------------------------------------------ */
 /* Field shapes                                                        */
 /* ------------------------------------------------------------------ */

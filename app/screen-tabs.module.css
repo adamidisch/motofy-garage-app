@@ -1,0 +1,7 @@
+.five{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+.visitTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:0 0 12px;padding:4px;border-radius:13px;background:rgba(255,255,255,.48)}
+.visitTabs button{height:34px;border-radius:10px;background:transparent;color:#70839f;font-size:10px;font-weight:700}
+
+.visitTabs button{min-height:40px;height:40px;font-size:11px;letter-spacing:-.2px}
+@media (max-width:360px){.visitTabs button{font-size:10px}}
+.fullBleed{background:#e7eef8!important;backdrop-filter:none!important}

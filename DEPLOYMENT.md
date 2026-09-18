@@ -1,141 +1,142 @@
 # Motofy deployment and release workflow
 
-This file is the operational source of truth for how Motofy moves from GitHub to the live development Site.
-For the concise current snapshot, read `CURRENT_STATE.md` first.
+This file is the operational source of truth for where Motofy code lives, what is live, and how changes move between environments.
 
-## Current deployment state
+## Canonical sources
 
-| Item | Current state |
+| Item | Canonical source |
 | --- | --- |
-| Repository | `adamidisch/motofy-garage-app` |
-| Development branch | `main` |
-| App semantic version | `v2.2.0` |
-| Live Sites revision | **v75** |
-| Live URL | `https://motofy-garage-revamp.johnstaf.chatgpt.site/` |
+| Source code | GitHub `adamidisch/motofy-garage-app` |\n| Current app version | `v2.3.0` · Supabase auth/state foundation |
+| Stable development code | `main` branch |
+| Development live site | https://motofy-garage-revamp.johnstaf.chatgpt.site/ |
 | Development hosting | OpenAI Sites — temporary |
 | Future production hosting | User-owned Cloudflare account |
-| Database/Auth target | Existing Supabase project `Garage-App`, `eu-west-1` |
-| D1/Drizzle | Reference only |
+| Database/Auth | Existing Supabase project `Garage-App`, `eu-west-1` |
+| D1/Drizzle | Reference only, never the production persistence layer |
 | Vercel | Not part of the Motofy plan |
-
-## Version terminology
-
-Keep these identifiers separate:
-
-- `v2.2.0` = Motofy application/package semantic version
-- `v75` = OpenAI Sites deployment revision
-- Git SHA = GitHub source revision
-
-A Sites revision is not an application semantic version.
-
-## Current live release — Sites v75
-
-Status: **deployed successfully**
-
-Deployment record source snapshot:
-
-`aeed103a956a4e0ad28b8c51dcd7a832568873ae`
-
-That snapshot identifier does not currently resolve as a normal commit in the GitHub repository. Treat it as the recorded Sites source snapshot reference rather than the current GitHub `main` SHA.
-
-Verified v75 behavior:
-
-- AI Name Normalizer via Gemini
-- `antreas` -> `Αντρέα`
-- `kattos` -> `Κάττε`
-- Settings name changes use normalization
-- typed name remains the fallback when Gemini fails
-- logout clears the greeting correctly
-- deploy-74 UI fixes remain intact
-- build succeeded
-- tests: **140/140 passed**
-
-## GitHub/live reconciliation status
-
-The latest known functional UI baseline on `main` is:
-
-`c5c94476f0e08db32cb5e4fcc2a1a31909d5ea08`
-
-This is the plate-first hierarchy and semantic-colors baseline. Newer `main` commits may be documentation-only and should not be mistaken for new functional releases.
-
-The branch:
-
-`feature/ai-name-normalizer`
-
-currently points to:
-
-`8545c3aae853d49bd0ccd0bc580d01ea1723103a`
-
-It contains the Name Normalizer work but diverges from the current UI baseline and previously reverted deploy-74 UI fixes when used wholesale.
-
-### Reconciliation rule
-
-Before the next functional release:
-
-1. Start from current `main`.
-2. Port only the verified AI Name Normalizer functionality from the feature work.
-3. Preserve the current plate-first/UI baseline.
-4. Do not merge `feature/ai-name-normalizer` wholesale.
-5. Run the relevant targeted tests and then the complete test suite.
-6. Compare the final diff for accidental UI changes.
-7. Only after the GitHub source represents the intended live feature set should the next release be published.
-
-Until that reconciliation is completed, do not assume `main` and live v75 are byte-for-byte identical.
 
 ## Critical rule: GitHub main is not the live site
 
-A merge or commit to `main` changes GitHub only.
+A merge to `main` changes the canonical source code only.
 
-It does **not** prove that OpenAI Sites has been rebuilt or republished.
+The OpenAI Sites URL may continue serving an older deployment until a new Sites build is explicitly published. Never assume that the live URL contains the current `main` commit.
 
-When debugging or releasing, identify separately:
+When debugging, always identify both:
 
-1. application semantic version
-2. GitHub `main` SHA
-3. Sites deployment revision
-4. live URL
-5. test result
-6. smoke-test result
+1. the GitHub `main` commit being tested
+2. the deployment that is actually live
 
-If GitHub and the live deployment are not known to match, a live-site issue does not prove that current GitHub code is broken and a GitHub fix does not prove the live Site contains it.
+If those are not known to match, a live-site failure does not prove the current GitHub code is broken.
 
 ## Release procedure
 
 For every functional release:
 
-1. Make the smallest safe change from the current reconciled `main` baseline.
-2. Run targeted tests for the changed feature.
-3. Run repository-wide verification when justified:
+1. Make the change on a branch.
+2. Run the relevant tests.
+3. Merge the validated branch to `main`.
+4. Record the final `main` commit SHA.
+5. Publish/redeploy that exact `main` state to the development site.
+6. Open the live URL and run a smoke test.
+7. Only then mark the feature as LIVE.
 
-```bash
-npm run lint
-npm run build
-npm test
-```
+Do not call a change "live" merely because it was merged to GitHub.
 
-4. Review the actual diff for unintended changes.
-5. Merge validated work to `main`.
-6. Record the final GitHub SHA.
-7. Publish/redeploy that exact intended source state to the existing Motofy Site.
-8. Record the new Sites revision.
-9. Smoke-test the live URL on a mobile-sized viewport and the affected flow.
-10. Only then call the change **LIVE**.
+## Current release status — 2026-09-04
 
-## Deployment safety
+### GitHub main
 
-- Do not use old Vercel deployments as Motofy test targets.
-- Do not create a second production database or Supabase project.
-- Do not expose API keys or secrets to the browser.
-- Do not deploy experimental branches over the existing live Site merely for preview.
-- Use a separate preview environment when a branch must be visually checked before merge.
-- Preserve the existing live URL unless the user explicitly requests otherwise.
+Phase 1 Gemini scan correctness fix is merged.
 
-## Supabase note
+Validated behavior:
+- real test image: `PYZ 824`
+- make: `Land Rover`
+- model: `Range Rover`
+- confidence: `high`
+- direct Gemini probe: PASS
+- parser target: `steps[] -> model_output -> content[] -> text`
+- backend timeout: 30s
+- frontend timeout: 35s
+- diagnostic probe timeout: 60s
+- Gemini thinking level: low (latency patch)
+- offline unit tests: 43/43 PASS
 
-The existing Supabase public schema predates parts of the current Motofy repository schema.
+Phase 1 code merge:
+`5a0dbdd7f9f77d62cb3adfd7511b817dc20435d6`
 
-Target domain schema:
+Architecture docs merge:
+`52cbd4cf5ed87e05d03a7905cdef17d37a0af83c`
 
-`lib/data/schema.mjs`
+### Development live site
 
-Supabase migration must reconcile the database to that target model. Do not redesign the application around legacy Supabase columns merely because they already exist.
+URL:
+https://motofy-garage-revamp.johnstaf.chatgpt.site/
+
+Status:
+**Deployment freshness not yet confirmed against the Phase 1 `main` commits.**
+
+The live scan currently showing the old failure should be treated first as a deployment-version mismatch until the site is republished from current `main` and retested.
+
+## Next release gate
+
+Before Phase 2 starts:
+
+- deploy current `main` to the development site
+- smoke-test the same `pyz824.png` through the real UI
+- confirm the UI returns `PYZ 824 / Land Rover / Range Rover`
+
+Only after that gate passes should Phase 2 begin.
+
+## Phase 2
+
+Phase 2 is Supabase foundation:
+
+1. Supabase client/config
+2. garages
+3. garage_members
+4. customers
+5. vehicles
+6. jobs
+7. scan_events
+8. Auth
+9. RLS
+10. replace hardcoded demo data incrementally
+
+Do not start D1 persistence and do not migrate to Vercel.
+
+## Supabase auth and state sync
+
+The application keeps the compact mechanic login (`name` + optional four-digit
+PIN) but does not trust either value in the browser. The worker derives a
+stable hidden Supabase Auth identity, creates or signs it in server-side and
+stores the access and refresh tokens in HttpOnly cookies. The browser never
+receives the Supabase service key.
+
+The worker requires these production runtime secrets before normal account
+login can be enabled:
+
+- `SUPABASE_URL` — `https://oafwriftgqzoaeantdtp.supabase.co`
+- `SUPABASE_ANON_KEY` — the project's publishable/anon key
+- `SUPABASE_SECRET_KEY` — preferred secret key, server-side only
+- `MOTOFY_AUTH_PEPPER` — a random long secret used for identity derivation
+
+`SUPABASE_SERVICE_ROLE_KEY` remains accepted only as a legacy fallback.
+
+The `public.garage_state` table stores the current repository snapshot while
+the relational repository migration is completed. It has RLS and only an
+authenticated garage member can read or write its row. Demo remains local and
+does not require Supabase credentials. The two migrations are tracked under
+`supabase/migrations/` and are already applied to the Garage-App project.
+
+
+## v0.2.2 live scan experiment
+
+Development-only dual-engine scan flow:
+
+1. Plate Recognizer Snapshot Cloud reads the Cyprus plate first via `/api/scan/plate`.
+2. Gemini runs in parallel via `/api/scan/vehicle` for vehicle make/model and remains a plate fallback.
+3. The UI exposes stage-based progress and actual engine completion instead of the obsolete Base/Contrast/Sharp/Vote labels.
+4. If Gemini fails but Plate Recognizer returned a plate, the scan still succeeds with the plate-only result.
+5. `PLATE_RECOGNIZER_TOKEN` and `GEMINI_API_KEY` are server-side secrets only.
+
+This is a development benchmark architecture. Provider selection is not final production architecture.

@@ -2,8 +2,10 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { runPlateRecognizerScan, runVehicleScan, ScanError } from "../lib/scan-core.mjs";
+import { runNameNormalize } from "../lib/name-core.mjs";
+import { getState, login as loginWithPIN, logout as logoutAuth, putState, type AuthEnv } from "./auth";
 
-interface Env {
+interface Env extends AuthEnv {
   ASSETS: Fetcher;
   DB: D1Database;
   GEMINI_API_KEY?: string;
@@ -92,6 +94,24 @@ async function scanVehicle(request: Request, env: Env) {
   }
 }
 
+async function normalizeName(request: Request, env: Env) {
+  let payload: { name?: string; lang?: string } = {};
+  try { payload = (await request.json()) as { name?: string; lang?: string }; }
+  catch { return json({ error: "Το όνομα δεν διαβάστηκε." }, 400); }
+  try {
+    const result = await runNameNormalize({
+      apiKey: env.GEMINI_API_KEY,
+      name: payload.name,
+      lang: payload.lang === "en" ? "en" : "el",
+      log: (message: string, ...rest: unknown[]) => console.error("[name]", message, ...rest),
+    });
+    return json(result);
+  } catch (error) {
+    if (error instanceof ScanError) return json({ error: error.userMessage }, error.status);
+    return json({ error: "Δεν ολοκληρώθηκε η προσαρμογή ονόματος." }, 500);
+  }
+}
+
 interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
   passThroughOnException(): void;
@@ -106,6 +126,27 @@ interface ExecutionContext {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === "/api/name") {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      return normalizeName(request, env);
+    }
+
+    if (url.pathname === "/api/auth/login") {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      return loginWithPIN(request, env);
+    }
+
+    if (url.pathname === "/api/auth/logout") {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      return logoutAuth(request);
+    }
+
+    if (url.pathname === "/api/data") {
+      if (request.method === "GET") return getState(request, env);
+      if (request.method === "PUT") return putState(request, env);
+      return json({ error: "Method not allowed" }, 405);
+    }
 
     if (url.pathname === "/api/scan/plate") {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);

@@ -66,8 +66,11 @@ export declare function createBrowserStorage(): StorageAdapter;
 export declare const MIGRATIONS: Record<number, (dataset: Dataset) => Dataset>;
 export declare function createRepository(options?: {
   garageId?: string;
+  garageName?: string;
   storage?: StorageAdapter;
   now?: () => Date;
   generateId?: (table: TableName) => string;
   seedWhenEmpty?: boolean;
+  seedGarageWhenEmpty?: boolean;
+  onPersist?: (data: Record<string, unknown>) => void;
 }): Repository;
