@@ -15,6 +15,7 @@ const MAX_STATE_BYTES = 2_000_000;
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 
 type Session = { access_token: string; refresh_token: string; expires_in?: number };
+type CreateAuthUserResult = "created" | "existing" | "error";
 
 function json(data: unknown, status = 200, extraHeaders: Array<[string, string]> = []) {
   const headers = new Headers({ "Cache-Control": "no-store" });
@@ -78,15 +79,16 @@ async function parseBody<T>(request: Request): Promise<T | null> {
   try { return await request.json() as T; } catch { return null; }
 }
 
-async function createAuthUser(cfg: ReturnType<typeof config>, identity: Awaited<ReturnType<typeof buildAuthIdentity>>) {
-  if (!cfg || !identity.ok || !("email" in identity)) return false;
+async function createAuthUser(cfg: ReturnType<typeof config>, identity: Awaited<ReturnType<typeof buildAuthIdentity>>): Promise<CreateAuthUserResult> {
+  if (!cfg || !identity.ok || !("email" in identity)) return "error";
   const response = await fetch(`${cfg.url}/auth/v1/admin/users`, {
     method: "POST",
     headers: adminHeaders(cfg.service, true),
     body: JSON.stringify({ email: identity.email, password: identity.password, email_confirm: true, user_metadata: { motofy_name: identity.nameKey } }),
   });
-  if (response.ok || response.status === 422) return true;
-  return false;
+  if (response.ok) return "created";
+  if (response.status === 422) return "existing";
+  return "error";
 }
 
 async function signIn(cfg: ReturnType<typeof config>, email: string, password: string): Promise<Session | null> {
@@ -141,12 +143,22 @@ async function ensureGarage(cfg: ReturnType<typeof config>, session: Session, di
   const garages = await garageResponse.json() as Array<{ id?: string }>;
   const garageId = garages[0]?.id;
   if (!garageId) return null;
+
   const linkResponse = await fetch(`${cfg.url}/rest/v1/garage_members`, {
     method: "POST",
     headers: { ...headers, Prefer: "return=minimal" },
     body: JSON.stringify({ garage_id: garageId, user_id: user.id, role: "owner" }),
   });
-  return linkResponse.ok ? garageId : null;
+  if (linkResponse.ok) return garageId;
+
+  // If two first-login requests race, another request may already have linked
+  // this user. Re-read membership before treating the login as a failure.
+  const retryMemberResponse = await fetch(`${cfg.url}/rest/v1/garage_members?select=garage_id&user_id=eq.${encodeURIComponent(user.id)}&limit=1`, {
+    headers,
+  });
+  if (!retryMemberResponse.ok) return null;
+  const retryMembers = await retryMemberResponse.json() as Array<{ garage_id?: string }>;
+  return retryMembers[0]?.garage_id ?? null;
 }
 
 async function restRequest(cfg: ReturnType<typeof config>, token: string, path: string, init: RequestInit = {}) {
@@ -166,13 +178,17 @@ export async function login(request: Request, env: AuthEnv) {
   const identity = await buildAuthIdentity({ name: body.name, pin: body.pin ?? "", pepper: cfg.pepper });
   if (!identity.ok || !("email" in identity)) return json({ error: "Το PIN πρέπει να έχει τέσσερα ψηφία ή να μείνει κενό." }, 400);
 
-  if (!(await createAuthUser(cfg, identity))) return json({ error: "Δεν δημιουργήθηκε η σύνδεση." }, 503);
+  const createResult = await createAuthUser(cfg, identity);
+  if (createResult === "error") return json({ error: "Δεν δημιουργήθηκε η σύνδεση." }, 503);
+
   const session = await signIn(cfg, identity.email, identity.password);
   if (!session) return json({ error: "Το όνομα ή το PIN δεν έγινε δεκτό." }, 401);
-  const garageId = await ensureGarage(cfg, session, body.name.trim());
-  if (!garageId) return json({ error: "Δεν βρέθηκε το garage του λογαριασμού." }, 503);
 
-  return json({ ok: true, garageId }, 200, setAuthCookies(request, session, garageId));
+  const garageId = await ensureGarage(cfg, session, body.name.trim());
+  if (!garageId) return json({ error: "Δεν ολοκληρώθηκε η δημιουργία του garage. Δοκίμασε ξανά." }, 503);
+
+  const created = createResult === "created";
+  return json({ ok: true, garageId, created }, created ? 201 : 200, setAuthCookies(request, session, garageId));
 }
 
 export async function logout(request: Request) {
