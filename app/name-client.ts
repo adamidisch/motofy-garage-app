@@ -42,12 +42,33 @@ export async function requestNormalizedName(name: string, lang: "el" | "en" = "e
   }
 }
 
+function syncDemoDashboardCopy(isDemo: boolean) {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  window.requestAnimationFrame(() => {
+    const copy = document.querySelector<HTMLElement>(".intro-row .intro-copy");
+    if (!copy) return;
+    if (isDemo) {
+      const lang = localStorage.getItem("motofy-language") === "en" ? "en" : "el";
+      copy.textContent = lang === "en" ? "Demo data" : "Δεδομένα επίδειξης";
+      copy.dataset.motofyDemoCopy = "1";
+    } else if (copy.dataset.motofyDemoCopy === "1") {
+      delete copy.dataset.motofyDemoCopy;
+    }
+  });
+}
+
 export function readGreetName(session: string, demoSession: string): string {
-  if (session === demoSession) return "Demo";
   try {
+    const storedSession = globalThis.localStorage?.getItem(SESSION_KEY)?.trim() ?? "";
+    const isDemo = session === demoSession || !storedSession;
+    syncDemoDashboardCopy(isDemo);
+    if (isDemo) return "Demo";
+
     const stored = globalThis.localStorage?.getItem(GREET_KEY)?.trim();
     if (stored) return stored;
-  } catch {}
+  } catch {
+    if (session === demoSession) return "Demo";
+  }
   return session;
 }
 
@@ -61,6 +82,7 @@ export function clearGreeting() {
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(GREET_KEY);
   localStorage.removeItem(GARAGE_ID_KEY);
+  localStorage.removeItem("motofy-user-name");
 }
 
 function showAccountCreatedNotice() {
