@@ -32,8 +32,6 @@ function config(env: AuthEnv) {
 
 function adminHeaders(serviceKey: string, contentType = false) {
   const headers: Record<string, string> = { apikey: serviceKey };
-  // Legacy service_role keys are JWTs. New sb_secret keys must not be sent
-  // as Bearer tokens, only in the apikey header.
   if (serviceKey.startsWith("eyJ")) headers.Authorization = `Bearer ${serviceKey}`;
   if (contentType) headers["content-type"] = "application/json";
   return headers;
@@ -117,19 +115,20 @@ async function refreshSession(cfg: ReturnType<typeof config>, refreshToken: stri
   return { access_token: value.access_token, refresh_token: value.refresh_token, expires_in: value.expires_in };
 }
 
-async function ensureGarage(cfg: ReturnType<typeof config>, session: Session, _displayName: string): Promise<string | null> {
+async function ensureGarage(cfg: ReturnType<typeof config>, session: Session, displayName: string): Promise<string | null> {
   if (!cfg) return null;
-
-  // Garage membership is created transactionally by the Supabase auth-user
-  // trigger. Resolve it with the signed-in user's JWT so RLS is evaluated for
-  // the correct user instead of relying on service-key behaviour.
-  const memberResponse = await fetch(`${cfg.url}/rest/v1/garage_members?select=garage_id&limit=1`, {
-    headers: { apikey: cfg.anon, Authorization: `Bearer ${session.access_token}` },
+  const response = await fetch(`${cfg.url}/rest/v1/rpc/ensure_garage`, {
+    method: "POST",
+    headers: {
+      apikey: cfg.anon,
+      Authorization: `Bearer ${session.access_token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ p_name: displayName.slice(0, 120) || "Garage" }),
   });
-  if (!memberResponse.ok) return null;
-
-  const members = await memberResponse.json() as Array<{ garage_id?: string }>;
-  return members[0]?.garage_id ?? null;
+  if (!response.ok) return null;
+  const value = await response.json() as unknown;
+  return typeof value === "string" && value ? value : null;
 }
 
 async function restRequest(cfg: ReturnType<typeof config>, token: string, path: string, init: RequestInit = {}) {
