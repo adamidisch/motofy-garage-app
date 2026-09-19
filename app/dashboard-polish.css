@@ -1,0 +1,11 @@
+/* Motofy dashboard polish */
+.intro-row h1 { font-weight: 520; letter-spacing: -.72px; }
+.intro-copy { font-size: 13.5px; color: #6f819f; }
+.notification { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(94,119,162,.12); background: rgba(255,255,255,.5); display: grid; place-items: center; box-shadow: inset 0 1px rgba(255,255,255,.9), 0 4px 12px rgba(61,84,126,.05); }
+.notification svg { width: 16px; height: 16px; }
+.notification i { top: 5px; right: 5px; width: 5px; height: 5px; }
+.home-action-total { min-width: 29px; height: 25px; padding: 0 8px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; color: #5268bd; background: rgba(236,240,255,.92); border: 1px solid rgba(82,104,189,.08); font-size: 11px; font-weight: 650; line-height: 1; }
+.bottom-nav { grid-template-columns: repeat(4, minmax(0,1fr)); padding-left: 14px; padding-right: 14px; }
+.bottom-nav button { width: 100%; gap: 4px; font-size: 10.5px; }
+.bottom-nav button.selected { font-weight: 650; }
+@media (min-width:700px) { .bottom-nav { display:flex; padding:10px; } }
