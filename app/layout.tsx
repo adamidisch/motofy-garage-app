@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./v220-polish.css";
+import "./dashboard-polish.css";
+import DashboardPolish from "./dashboard-polish";
 
 export const metadata: Metadata = {
   title: "Motofy Garage",
@@ -29,6 +31,7 @@ export default function RootLayout({
     <html lang="el">
       <body className="antialiased">
         {children}
+        <DashboardPolish />
       </body>
     </html>
   );
