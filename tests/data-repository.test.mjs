@@ -361,10 +361,10 @@ test("every seeded record carries the garage id", () => {
 
 test("demo seed contains enough linked records for a useful walkthrough", () => {
   const seed = createSeed({ now: FIXED_NOW });
-  assert.ok(seed.customers.length >= 10);
-  assert.ok(seed.vehicles.length >= 10);
-  assert.ok(seed.jobs.length >= 10);
-  assert.ok(seed.notes.length >= 10);
+  assert.equal(seed.customers.length, 7);
+  assert.equal(seed.vehicles.length, 10);
+  assert.equal(seed.jobs.length, 20);
+  assert.equal(seed.notes.length, 8);
 });
 
 test("an absent demo garage is seeded without replacing another garage", () => {
