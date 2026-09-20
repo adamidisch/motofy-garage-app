@@ -58,6 +58,25 @@ function englishLoginName(value: string): string {
   return value.replace(/[^A-Za-z' -]/g, "");
 }
 
+function resetDemoStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw) as Record<string, unknown>;
+    for (const key of ["customers", "vehicles", "jobs", "notes"]) {
+      if (Array.isArray(data[key])) {
+        data[key] = (data[key] as Array<Record<string, unknown>>).filter((row) => row.garage_id !== DEMO_GARAGE_ID);
+      }
+    }
+    if (Array.isArray(data.garages)) {
+      data.garages = (data.garages as Array<Record<string, unknown>>).filter((row) => row.id !== DEMO_GARAGE_ID);
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
 const APP_VERSION = "2.3.0";
 const APP_RELEASE = "Unified";
 
@@ -124,7 +143,7 @@ export default function Home() {
   }, [session, garageId]);
   if (!session) return <LoginScreen
     onLogin={async (name, pin) => { const lang = localStorage.getItem("motofy-language") === "en" ? "en" : "el"; await loginWithPIN(name, pin); const [greeting, nextGarageId] = await Promise.all([lang === "en" ? Promise.resolve(name.trim()) : requestNormalizedName(name, lang), deriveGarageId(name, pin)]); storeGreeting(name, greeting); localStorage.setItem(GARAGE_ID_KEY, nextGarageId); setGarageId(nextGarageId); setRemoteReady(false); setSession(name); }}
-    onDemo={() => { localStorage.removeItem(STORAGE_KEY); localStorage.setItem(GARAGE_ID_KEY, DEMO_GARAGE_ID); setGarageId(DEMO_GARAGE_ID); setRemoteReady(true); setSession(DEMO_SESSION); }}
+    onDemo={() => { resetDemoStorage(); localStorage.setItem(GARAGE_ID_KEY, DEMO_GARAGE_ID); setGarageId(DEMO_GARAGE_ID); setRemoteReady(true); setSession(DEMO_SESSION); }}
   />;
   if (!remoteReady) return <div className="login-screen"><div className="login-card"><p className="login-tagline">Φορτώνουμε το garage…</p></div></div>;
   return <AppBody session={session} garageId={garageId} onLogout={() => { logoutRemote(); clearGreeting(); setRemoteReady(true); setSession(null); }}/>
