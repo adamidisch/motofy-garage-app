@@ -74,7 +74,14 @@ test("unknown name falls back to the typed input when Gemini fails", async () =>
   assert.equal(greeting, "xqzt");
 });
 
+test("Panikos keeps a Greek vocative fallback when Gemini is unavailable", async () => {
+  const greeting = await requestNormalizedName("panikos", "el", geminiFail());
+  assert.equal(greeting, "Πανίκο");
+  assert.equal(cleanGreeting("panikos", "panikos"), "Πανίκο");
+});
+
 test("cleanGreeting never keeps a hello phrase", () => {
   assert.equal(cleanGreeting("Καλημέρα, Αντρέα", "antreas"), "Αντρέα");
   assert.equal(firstName("Andreas Christou"), "Andreas");
 });
+
