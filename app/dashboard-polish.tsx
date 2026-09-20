@@ -59,9 +59,12 @@ export default function DashboardPolish() {
 
     document.addEventListener("click", afterInteraction, true);
     window.addEventListener("storage", onStorage);
+    const onDashboardSync = () => syncDashboard();
+    window.addEventListener("motofy-dashboard-sync", onDashboardSync);
     return () => {
       document.removeEventListener("click", afterInteraction, true);
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener("motofy-dashboard-sync", onDashboardSync);
     };
   }, []);
 
