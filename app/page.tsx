@@ -40,6 +40,7 @@ const GREEKLISH_NAMES: Record<string, string> = {
   eleni: "Ελένη",
   michalis: "Μιχάλης",
   georgia: "Γεωργία",
+  panikos: "Πανίκο",
 };
 
 function displayName(name: string): string {
@@ -77,7 +78,7 @@ function resetDemoStorage() {
   }
 }
 
-const APP_VERSION = "2.3.0";
+const APP_VERSION = "2.3.1";
 const APP_RELEASE = "Unified";
 
 function scopeRemotePayload(payload: Record<string, unknown>, garageId: string): Record<string, unknown> {
@@ -677,3 +678,4 @@ function ProcessingState({ t, progress }: { t: typeof el; progress: ScanProgress
     </div>
   </div>;
 }
+
