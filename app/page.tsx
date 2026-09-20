@@ -49,9 +49,13 @@ function displayName(name: string): string {
 
 function greet(name: string, lang: "el" | "en", now = new Date()): string {
   const morning = now.getHours() < 12;
-  const display = name === DEMO_SESSION ? "Demo" : displayName(name);
+  const display = name === DEMO_SESSION ? "Demo" : lang === "en" ? name.trim() : displayName(name);
   if (lang === "en") return (morning ? "Good morning, " : "Good evening, ") + display;
   return (morning ? "Καλημέρα, " : "Καλησπέρα, ") + display;
+}
+
+function englishLoginName(value: string): string {
+  return value.replace(/[^A-Za-z' -]/g, "");
 }
 
 const APP_VERSION = "2.3.0";
@@ -119,8 +123,8 @@ export default function Home() {
     return () => { active = false; };
   }, [session, garageId]);
   if (!session) return <LoginScreen
-    onLogin={async (name, pin) => { const lang = localStorage.getItem("motofy-language") === "en" ? "en" : "el"; await loginWithPIN(name, pin); const [greeting, nextGarageId] = await Promise.all([requestNormalizedName(name, lang), deriveGarageId(name, pin)]); storeGreeting(name, greeting); localStorage.setItem(GARAGE_ID_KEY, nextGarageId); setGarageId(nextGarageId); setRemoteReady(false); setSession(name); }}
-    onDemo={() => { setGarageId(DEMO_GARAGE_ID); setRemoteReady(true); setSession(DEMO_SESSION); }}
+    onLogin={async (name, pin) => { const lang = localStorage.getItem("motofy-language") === "en" ? "en" : "el"; await loginWithPIN(name, pin); const [greeting, nextGarageId] = await Promise.all([lang === "en" ? Promise.resolve(name.trim()) : requestNormalizedName(name, lang), deriveGarageId(name, pin)]); storeGreeting(name, greeting); localStorage.setItem(GARAGE_ID_KEY, nextGarageId); setGarageId(nextGarageId); setRemoteReady(false); setSession(name); }}
+    onDemo={() => { localStorage.removeItem(STORAGE_KEY); localStorage.setItem(GARAGE_ID_KEY, DEMO_GARAGE_ID); setGarageId(DEMO_GARAGE_ID); setRemoteReady(true); setSession(DEMO_SESSION); }}
   />;
   if (!remoteReady) return <div className="login-screen"><div className="login-card"><p className="login-tagline">Φορτώνουμε το garage…</p></div></div>;
   return <AppBody session={session} garageId={garageId} onLogout={() => { logoutRemote(); clearGreeting(); setRemoteReady(true); setSession(null); }}/>
@@ -164,12 +168,12 @@ function LoginScreen({ onLogin, onDemo }: { onLogin: (name: string, pin: string)
           <label className="login-field-label login-name-field">
             <span>{t.yourName}</span>
             <input className="login-field-input" type="text" autoComplete="name" value={name}
-              onChange={(e) => setName(e.target.value)} required autoFocus/>
+              lang="en" inputMode="text" pattern="[A-Za-z' -]+" onChange={(e) => setName(englishLoginName(e.target.value))} required autoFocus/>
           </label>
           <label className="login-field-label">
             <span>{t.loginPhone}<em className="login-field-hint">{t.optional}</em></span>
             <div className="pin-inputs" onPaste={pastePin}>
-              {[0, 1, 2, 3].map((index) => <input key={index} ref={(element) => { pinRefs.current[index] = element; }} className="pin-input" inputMode="numeric" maxLength={1} value={pin[index] ?? ""} aria-label={`${t.loginPhone} ${index + 1}`} onChange={(event) => updatePin(index, event.target.value)} onKeyDown={(event) => handlePinKey(index, event.key)}/>) }
+              {[0, 1, 2, 3].map((index) => <input key={index} ref={(element) => { pinRefs.current[index] = element; }} className="pin-input" type="tel" inputMode="numeric" pattern="[0-9]" maxLength={1} value={pin[index] ?? ""} aria-label={`${t.loginPhone} ${index + 1}`} onChange={(event) => updatePin(index, event.target.value)} onKeyDown={(event) => handlePinKey(index, event.key)}/>) }
             </div>
           </label>
           <button className="login-btn" type="submit">{t.loginBtn}</button>
@@ -254,6 +258,7 @@ function AppBody({ session, garageId, onLogout }: { session: string; garageId: s
     const repo = repositoryRef.current;
     if (repo) void syncPhotoMaps(repo);
     setRepoVersion((version) => version + 1);
+    window.dispatchEvent(new Event("motofy-dashboard-sync"));
   }
   function openCreation(mode: CreationMode, scan: ScanResult | null = null, vehicleId: string | null = null, photo: string | null = null) {
     setAddOpen(false); setMenuOpen(false); setCreationScan(scan); setCreationVehicleId(vehicleId); setCreationPhoto(photo); setCreation(mode);
@@ -301,6 +306,7 @@ function AppBody({ session, garageId, onLogout }: { session: string; garageId: s
     repositoryRef.current = repo;
     setRepoVersion((version) => version + 1);
     void syncPhotoMaps(repo);
+    window.dispatchEvent(new Event("motofy-dashboard-sync"));
   }, [garageId]);
 
   const vehicleRows: VehicleListRow[] = repository
@@ -361,8 +367,8 @@ function AppBody({ session, garageId, onLogout }: { session: string; garageId: s
 
   function switchLanguage() { const next = lang === "el" ? "en" : "el"; setLang(next); localStorage.setItem("motofy-language", next); }
   function chooseTheme(next: string) { setTheme(next); localStorage.setItem("motofy-theme", next); notice(t.saved); }
-  function saveUserName(next: string) { setUserName(next); localStorage.setItem("motofy-user-name", next.trim()); if (next.trim()) localStorage.setItem(SESSION_KEY, next.trim()); }
-  async function commitUserName(next: string) { const trimmed = next.trim(); if (!trimmed || session === DEMO_SESSION) return; const greeting = await requestNormalizedName(trimmed, lang); storeGreeting(trimmed, greeting); setAiStatus(readAIStatus()); }
+  function saveUserName(next: string) { const clean = lang === "en" ? englishLoginName(next) : next; setUserName(clean); localStorage.setItem("motofy-user-name", clean.trim()); if (clean.trim()) localStorage.setItem(SESSION_KEY, clean.trim()); }
+  async function commitUserName(next: string) { const trimmed = next.trim(); if (!trimmed || session === DEMO_SESSION) return; const greeting = lang === "en" ? trimmed : await requestNormalizedName(trimmed, lang); storeGreeting(trimmed, greeting); setAiStatus(readAIStatus()); }
   function startScanner() {
     setMenuOpen(false); setAddOpen(false); setCameraError(false); setScanError("");
     setScanResult(null); setSelectedImage(null);
