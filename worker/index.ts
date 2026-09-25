@@ -3,9 +3,10 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import { runPlateRecognizerScan, runVehicleScan, ScanError } from "../lib/scan-core.mjs";
 import { runNameNormalize } from "../lib/name-core.mjs";
-import { getState, login as loginWithPIN, logout as logoutAuth, putState, type AuthEnv } from "./auth";
+import { getState, getAuthenticatedUserId, login as loginWithPIN, logout as logoutAuth, putState, type AuthEnv } from "./auth";
+import { aiSearch, type AiSearchEnv } from "./ai-search";
 
-interface Env extends AuthEnv {
+interface Env extends AuthEnv, AiSearchEnv {
   ASSETS: Fetcher;
   DB: D1Database;
   GEMINI_API_KEY?: string;
@@ -127,7 +128,7 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === "/api/name") {
+    if (url.pathname === "/api/ai-search") {\n      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);\n      return aiSearch(request, env);\n    }\n\n    if (url.pathname === "/api/name") {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
       return normalizeName(request, env);
     }
