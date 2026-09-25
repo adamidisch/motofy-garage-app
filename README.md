@@ -29,6 +29,41 @@ The scanner sends the selected image to a server-side AI integration. Configure 
 
 For product rules and the current scan-integration state, read [CLAUDE.md](CLAUDE.md) before making a change. For the source-of-truth, live-site and release procedure, read [DEPLOYMENT.md](DEPLOYMENT.md). A merge to GitHub `main` is not proof that the OpenAI Sites deployment has been refreshed.
 
+## Platform Foundation AI Search
+
+The authenticated Worker exposes `POST /api/ai-search`. The browser may send
+only `message`, a small selected `context`, an optional
+`fallback_answer` and `local_first`. The Worker derives the authenticated
+Supabase user ID and signs the request server-side before calling the shared
+service.
+
+Configure these server-only deployment variables:
+
+```env
+PLATFORM_FOUNDATION_URL=https://platform-foundation-delta.vercel.app
+PLATFORM_FOUNDATION_APP_ID=motofy
+PLATFORM_FOUNDATION_APP_SECRET=the-same-random-secret-as-the-platform-service
+```
+
+The secret must be at least 32 characters and must match the `motofy` value
+inside the platform service's `AI_SEARCH_APP_SECRETS`. Never expose it through
+a `NEXT_PUBLIC_*` variable or send it from a client component. The service
+receives only the selected context and never connects to Motofy's database.
+
+Example client request:
+
+```ts
+const response = await fetch("/api/ai-search", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    message: "Ποια αυτοκίνητα έχουν service αυτή την εβδομάδα;",
+    context: { vehicles: selectedVehicles, jobs: selectedJobs },
+    fallback_answer: "Δεν βρέθηκαν προγραμματισμένα service.",
+  }),
+});
+```
+
 ## Workspace auth headers
 
 OpenAI workspace sites can read the current user's email from `oai-authenticated-user-email`.
