@@ -176,11 +176,15 @@ export async function getAuthenticatedUserId(request: Request, env: AuthEnv): Pr
   const auth = await authenticatedRequest(request, env);
   if (!auth.cfg || !auth.token) return null;
 
-  const response = await restRequest(auth.cfg, auth.token, "/auth/v1/user");
-  if (!response?.ok) return null;
+  try {
+    const response = await restRequest(auth.cfg, auth.token, "/auth/v1/user");
+    if (!response?.ok) return null;
 
-  const value = await response.json().catch(() => ({})) as { id?: unknown };
-  return typeof value.id === "string" && value.id ? value.id : null;
+    const value = await response.json().catch(() => ({})) as { id?: unknown };
+    return typeof value.id === "string" && value.id ? value.id : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getState(request: Request, env: AuthEnv) {
