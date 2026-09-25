@@ -128,7 +128,12 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === "/api/ai-search") {\n      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);\n      return aiSearch(request, env);\n    }\n\n    if (url.pathname === "/api/name") {
+    if (url.pathname === "/api/ai-search") {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      return aiSearch(request, env);
+    }
+
+    if (url.pathname === "/api/name") {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
       return normalizeName(request, env);
     }
