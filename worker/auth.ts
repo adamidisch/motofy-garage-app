@@ -172,6 +172,17 @@ async function authenticatedRequest(request: Request, env: AuthEnv) {
   return { cfg, cookies, response: null, token: cookies.accessToken };
 }
 
+export async function getAuthenticatedUserId(request: Request, env: AuthEnv): Promise<string | null> {
+  const auth = await authenticatedRequest(request, env);
+  if (!auth.cfg || !auth.token) return null;
+
+  const response = await restRequest(auth.cfg, auth.token, "/auth/v1/user");
+  if (!response?.ok) return null;
+
+  const value = await response.json().catch(() => ({})) as { id?: unknown };
+  return typeof value.id === "string" && value.id ? value.id : null;
+}
+
 export async function getState(request: Request, env: AuthEnv) {
   const auth = await authenticatedRequest(request, env);
   if (!auth.cfg || !auth.token) return json({ error: "Η σύνδεση έληξε." }, 401, clearAuthCookies(request));
