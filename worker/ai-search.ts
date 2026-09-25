@@ -67,7 +67,10 @@ function serialisedContext(value: unknown) {
 export async function aiSearch(request: Request, env: AiSearchEnv) {
   let payload: AiSearchPayload;
   try {
-    payload = (await request.json()) as AiSearchPayload;
+    const parsed = await request.json();
+    payload = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as AiSearchPayload
+      : {};
   } catch {
     return json({ ok: false, error: "Η ερώτηση δεν διαβάστηκε." }, 400);
   }
@@ -76,7 +79,7 @@ export async function aiSearch(request: Request, env: AiSearchEnv) {
   if (!message) return json({ ok: false, error: "Γράψε πρώτα την ερώτησή σου." }, 400);
 
   const context = serialisedContext(payload.context);
-  if (!context || context.length > MAX_CONTEXT_CHARS) {
+  if (!context || new TextEncoder().encode(context).length > MAX_CONTEXT_CHARS) {
     return json({ ok: false, error: "Τα δεδομένα αναζήτησης είναι πολύ μεγάλα." }, 413);
   }
 
