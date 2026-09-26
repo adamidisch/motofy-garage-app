@@ -14,6 +14,7 @@ import type { Customer, Job, Vehicle } from "../lib/data/schema.d.mts";
 import VehicleRecord from "./vehicle-record";
 import { loadPhotos, savePhoto } from "../lib/data/photo-store.mjs";
 import CreationModal, { type CreationMode } from "./creation-flows";
+import MiniAI from "./mini-ai";
 import { clearGreeting, GARAGE_ID_KEY, loadRemoteState, loginWithPIN, logoutRemote, readAIStatus, readGreetName, requestNormalizedName, storeGreeting, syncRemoteState } from "./name-client";
 
 type View = "home" | "cars" | "work" | "customers" | "settings";
@@ -78,8 +79,8 @@ function resetDemoStorage() {
   }
 }
 
-const APP_VERSION = "2.3.1";
-const APP_RELEASE = "Unified";
+const APP_VERSION = "2.4.0";
+const APP_RELEASE = "Mini AI Preview";
 
 function scopeRemotePayload(payload: Record<string, unknown>, garageId: string): Record<string, unknown> {
   const scoped = { ...payload };
@@ -234,6 +235,7 @@ function AppBody({ session, garageId, onLogout }: { session: string; garageId: s
   const [creation, setCreation] = useState<CreationMode | null>(null);
   const [creationScan, setCreationScan] = useState<ScanResult | null>(null);
   const [creationVehicleId, setCreationVehicleId] = useState<string | null>(null);
+  const [creationNoteBody, setCreationNoteBody] = useState("");
   const [creationPhoto, setCreationPhoto] = useState<string | null>(null);
   const [toastAction, setToastAction] = useState<(() => void) | null>(null);
   // Created on the client only. The seed is stamped with the current time, so
@@ -281,11 +283,11 @@ function AppBody({ session, garageId, onLogout }: { session: string; garageId: s
     window.dispatchEvent(new Event("motofy-dashboard-sync"));
   }
   function openCreation(mode: CreationMode, scan: ScanResult | null = null, vehicleId: string | null = null, photo: string | null = null) {
-    setAddOpen(false); setMenuOpen(false); setCreationScan(scan); setCreationVehicleId(vehicleId); setCreationPhoto(photo); setCreation(mode);
+    setAddOpen(false); setMenuOpen(false); setCreationScan(scan); setCreationVehicleId(vehicleId); setCreationPhoto(photo); setCreationNoteBody(""); setCreation(mode);
   }
   function finishCreation(message: string, vehicleId?: string) {
     const undo = repository?.peekUndo();
-    refreshRepository(); setCreation(null); setCreationScan(null); setCreationVehicleId(null); setCreationPhoto(null); notice(message, undo ? () => { repository?.undo(); refreshRepository(); setToast(""); setToastAction(null); } : undefined);
+    refreshRepository(); setCreation(null); setCreationScan(null); setCreationVehicleId(null); setCreationPhoto(null); setCreationNoteBody(""); notice(message, undo ? () => { repository?.undo(); refreshRepository(); setToast(""); setToastAction(null); } : undefined);
     if (vehicleId) { setSelectedVehicleId(vehicleId); setView("cars"); }
   }
   function createVehicleFromFlow(draft: { plate: string; make: string | null; model: string | null; mileage_km: number | null; customer_id: string | null }) {
@@ -570,7 +572,10 @@ function AppBody({ session, garageId, onLogout }: { session: string; garageId: s
         {menuOpen && <div className="action-popover menu-popover"><button onClick={() => selectView("settings")}><Settings2 size={16}/>{t.settings}</button><button onClick={() => { setMenuOpen(false); onLogout(); }}><X size={16}/>{t.signout}</button></div>}
       </header>
       <div className="content">
-        {view === "home" && <Dashboard t={t} lang={lang} session={userName.trim() || session} todayLabel={formatTodayLabel(new Date(), lang)} summary={dashSummary} startScanner={startScanner} selectView={selectView} notice={notice}/>}
+        {view === "home" && <Dashboard t={t} lang={lang} session={userName.trim() || session} todayLabel={formatTodayLabel(new Date(), lang)} summary={dashSummary} startScanner={startScanner} selectView={selectView} notice={notice}
+          miniAI={<MiniAI repository={repository} isDemo={session === DEMO_SESSION} lang={lang} openAddVehicle={() => openCreation("vehicle")} openJobs={() => selectView("work")} openVehicle={(id) => { setSelectedVehicleId(id); setView("cars"); }}
+            prepareNote={(vehicleId, body) => { openCreation("note", null, vehicleId); setCreationNoteBody(body); }}/>}
+        />}
         {view === "cars" && <Cars t={t} lang={lang} query={query} setQuery={setQuery} rows={vehicleRows} selectVehicle={setSelectedVehicleId} vehiclePhotos={vehiclePhotos}/>} 
         {view === "work" && <Work t={t} lang={lang} jobRows={jobRows} selectVehicle={setSelectedVehicleId} notice={notice} openCreation={openCreation} vehiclePhotos={vehiclePhotos} onJobUpdate={(jobId, status) => { if (!repository) return; repository.updateJob(jobId, { status }); const undo = repository.peekUndo(); refreshRepository(); notice(t.jobUpdated, undo ? () => { repository.undo(); refreshRepository(); } : undefined); }}/>}
         {view === "customers" && <Customers t={t} query={query} setQuery={setQuery} customerRows={customerRows} selectVehicle={setSelectedVehicleId} notice={notice} openCreation={openCreation}/>}
@@ -583,18 +588,19 @@ function AppBody({ session, garageId, onLogout }: { session: string; garageId: s
       <VehicleRecord record={openRecord} t={t} lang={lang} close={() => { setSelectedVehicleId(null); setScanForRecord(null); }} openVehicle={(id) => { setScanForRecord(null); setSelectedVehicleId(id); }} onJobUpdate={(jobId, status) => { if (!repository) return; repository.updateJob(jobId, { status }); const undo = repository.peekUndo(); refreshRepository(); notice(t.jobUpdated, undo ? () => { repository.undo(); refreshRepository(); } : undefined); }} openCreation={openCreation} vehiclePhoto={selectedVehicleId ? (vehiclePhotos.get(selectedVehicleId) ?? null) : null} customerPhoto={openRecord?.customer?.id ? (customerPhotos.get(openRecord.customer.id) ?? null) : null} onVehiclePhotoChange={async (url) => { if (!selectedVehicleId) return; try { await savePhoto("vehicle", selectedVehicleId, url); setVehiclePhotos((p) => new Map(p).set(selectedVehicleId, url)); } catch {} }} onCustomerPhotoChange={async (url) => { const cid = openRecord?.customer?.id; if (!cid) return; try { await savePhoto("customer", cid, url); setCustomerPhotos((p) => new Map(p).set(cid, url)); } catch {} }}/>
     )}
     {creation && repository && (
-      <CreationModal mode={creation} repository={repository} t={t} initialScan={creationScan} initialVehicleId={creationVehicleId} close={() => { setCreation(null); setCreationScan(null); setCreationVehicleId(null); setCreationPhoto(null); }} onCreateVehicle={createVehicleFromFlow} onCreateCustomer={createCustomerFromFlow} onCreateJob={createJobFromFlow} onCreateNote={createNoteFromFlow}/>
+      <CreationModal mode={creation} repository={repository} t={t} initialScan={creationScan} initialVehicleId={creationVehicleId} initialNoteBody={creationNoteBody} close={() => { setCreation(null); setCreationScan(null); setCreationVehicleId(null); setCreationPhoto(null); setCreationNoteBody(""); }} onCreateVehicle={createVehicleFromFlow} onCreateCustomer={createCustomerFromFlow} onCreateJob={createJobFromFlow} onCreateNote={createNoteFromFlow}/>
     )}
     {toast && <div className="toast"><Check size={16}/><span>{toast}</span>{toastAction && <button onClick={toastAction}>{t.undo}</button>}</div>}
   </main>;
 }
 
-function Dashboard({ t, lang, session, todayLabel, summary, startScanner, selectView, notice }: { t: typeof el; lang: "el" | "en"; session: string; todayLabel: string; summary: ReturnType<typeof buildDashboardSummary> | null; startScanner: () => void; selectView: (view: View) => void; notice: (message: string) => void }) {
+function Dashboard({ t, lang, session, todayLabel, summary, startScanner, selectView, notice, miniAI }: { t: typeof el; lang: "el" | "en"; session: string; todayLabel: string; summary: ReturnType<typeof buildDashboardSummary> | null; startScanner: () => void; selectView: (view: View) => void; notice: (message: string) => void; miniAI: React.ReactNode }) {
   return <>
     <section className="intro-row">
       <div><p className="eyebrow">{todayLabel}</p><h1>{greet(readGreetName(session, DEMO_SESSION), lang)}</h1><p className="intro-copy">{t.subtitle}</p></div>
       <button className="notification" onClick={() => notice(t.notificationsEmpty)} aria-label={t.notificationsTitle}><Bell size={18}/><i/></button>
     </section>
+    {miniAI}
     <section className="scan-card"><div className="scan-orb"><ScanLine size={30}/></div><div className="scan-copy"><span className="pill"><Sparkles size={13}/> AI READY</span><h2>{t.scanTitle}</h2><p>{t.scanText}</p></div><button className="scan-button" onClick={startScanner}>{t.scan}<span><Camera size={16}/></span></button></section>
     <section className="home-actions" aria-label={t.garage}>
       <button onClick={() => selectView("work")}><span className="home-action-icon home-action-work"><ClipboardList size={18}/></span><span className="home-action-copy"><strong>{t.work}</strong><small>{summary?.openCount ? `${summary.openCount} · ${t.activeJobs}` : t.noOpenJob}</small></span><ChevronRight size={18}/></button>
@@ -678,4 +684,3 @@ function ProcessingState({ t, progress }: { t: typeof el; progress: ScanProgress
     </div>
   </div>;
 }
-
