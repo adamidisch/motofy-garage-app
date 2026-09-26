@@ -3,8 +3,10 @@
 **Snapshot date:** 2026-09-26  
 **Repository:** `adamidisch/motofy-garage-app`  
 **Canonical branch:** `main`  
-**Snapshot commit:** `e517b0967d369c12c6f0ef62f9e63bdf87d6af9c` — Connect Motofy to Platform Foundation AI Search  
+**Functional code baseline before this state-cleanup:** `e517b0967d369c12c6f0ef62f9e63bdf87d6af9c` — Connect Motofy to Platform Foundation AI Search  
 **Application version:** `2.3.1` · release label `Unified`
+
+For the actual current `main` SHA, read GitHub directly rather than treating a SHA in this document as permanently current.
 
 ## Current implementation
 
@@ -16,9 +18,24 @@
 - Platform Foundation AI Search is implemented through `worker/ai-search.ts` and `POST /api/ai-search`. Motofy signs requests server-side using the app secret. The shared Platform Foundation service currently uses Vercel; Motofy itself uses OpenAI Sites hosting, not Vercel.
 - D1/Drizzle schema, migrations and the D1 hosting binding remain legacy/reference scaffolding.
 
+## Platform Foundation AI Search contract
+
+The current signed `/api/ai-search` integration is the implemented transport to the shared Platform Foundation AI service. The broader intent/action behavior below is the architecture contract and should not be treated as fully implemented unless the relevant Motofy capability is confirmed in source.
+
+- Platform Foundation is one shared AI service that can serve multiple projects.
+- Each project has its own `app_id`, server-side secret, project context and allowlisted capabilities/actions.
+- Motofy supplies only Motofy context. Project data must remain isolated from every other app using the shared service.
+- The shared AI service does not own Motofy's database access. Motofy selects the limited context that may be sent and retains control of reads and writes.
+- A Motofy command such as “add a new vehicle” should resolve to an intent/action that opens or invokes the existing Motofy vehicle-creation flow.
+- A write request such as adding a note must first resolve the intended vehicle, job or other entity. If the target is ambiguous, clarification is required before any write.
+- General questions may be answered as general AI requests without unnecessary Motofy data access or mutation.
+- Camera, voice and AI Search should share the same intent/action layer where practical to minimize mechanic typing.
+
+**Core rule:** AI may interpret and propose; the active project owns data access and execution.
+
 ## Deployment status
 
-The development URL recorded in deployment docs is https://motofy-garage-revamp.johnstaf.chatgpt.site/. Its deployed commit and freshness against this `main` snapshot are **not verified here**. GitHub and the live deployment must be checked separately.
+The development URL recorded in deployment docs is https://motofy-garage-revamp.johnstaf.chatgpt.site/. Its deployed commit and freshness against the functional code baseline recorded above are **not verified here**. GitHub and the live deployment must be checked separately.
 
 ## Decisions and working rules
 
