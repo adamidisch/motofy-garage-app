@@ -11,7 +11,11 @@ type AiSearchPayload = {
   context?: unknown;
   fallback_answer?: unknown;
   local_first?: unknown;
+  mode?: unknown;
+  scope?: unknown;
 };
+
+const MINI_AI_CAPABILITIES = ["open_add_vehicle", "open_vehicle", "show_jobs", "prepare_vehicle_note"] as const;
 
 const DEFAULT_SERVICE_URL = "https://platform-foundation-delta.vercel.app/api/ai-search";
 const MAX_MESSAGE_CHARS = 1600;
@@ -77,13 +81,16 @@ export async function aiSearch(request: Request, env: AiSearchEnv) {
 
   const message = text(payload.message, MAX_MESSAGE_CHARS);
   if (!message) return json({ ok: false, error: "Γράψε πρώτα την ερώτησή σου." }, 400);
+  const mode = payload.mode === "interpret" ? "interpret" : "answer";
+  const scope = mode === "answer" && payload.scope === "general" ? "general" : "app_data";
 
-  const context = serialisedContext(payload.context);
+  const selectedContext = mode === "interpret" || scope === "general" ? {} : payload.context;
+  const context = serialisedContext(selectedContext);
   if (!context || new TextEncoder().encode(context).length > MAX_CONTEXT_CHARS) {
     return json({ ok: false, error: "Τα δεδομένα αναζήτησης είναι πολύ μεγάλα." }, 413);
   }
 
-  const fallback = text(payload.fallback_answer, MAX_FALLBACK_CHARS);
+  const fallback = mode === "answer" && scope === "app_data" ? text(payload.fallback_answer, MAX_FALLBACK_CHARS) : "";
   const userId = await getAuthenticatedUserId(request, env);
   if (!userId) return json({ ok: false, error: "Η σύνδεση έληξε. Συνδέσου ξανά." }, 401);
 
@@ -101,9 +108,12 @@ export async function aiSearch(request: Request, env: AiSearchEnv) {
     request: {
       user_id: userId,
       message,
-      context: payload.context ?? {},
+      context: selectedContext ?? {},
       fallback_answer: fallback,
-      local_first: payload.local_first === true,
+      local_first: mode === "answer" && scope === "app_data" && payload.local_first === true,
+      mode,
+      scope,
+      ...(mode === "interpret" ? { capabilities: MINI_AI_CAPABILITIES } : {}),
     },
   };
 

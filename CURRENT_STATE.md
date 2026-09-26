@@ -4,11 +4,15 @@
 **Repository:** `adamidisch/motofy-garage-app`  
 **Canonical branch:** `main`  
 **Functional code baseline before this state-cleanup:** `e517b0967d369c12c6f0ef62f9e63bdf87d6af9c` — Connect Motofy to Platform Foundation AI Search  
-**Application version:** `2.3.1` · release label `Unified`
+**Application version on this preview branch:** `2.4.0` · release label `Mini AI Preview`
 
 For the actual current `main` SHA, read GitHub directly rather than treating a SHA in this document as permanently current.
 
 ## Current implementation
+
+- Preview branch `feat/mini-ai-preview-v2.4.0` adds an inline Mini AI field on Home. Deterministic commands cover existing Add Vehicle, plate lookup, completed oil-change jobs, today's jobs, a monthly make filter and note preparation through the existing creation flow. Voice fills the same text field when the browser supports recognition.
+- The signed adapter sends a fixed capability list for Platform Foundation v1.2 interpretation. General AI questions send empty app context. The shared provider path requires the Platform Foundation v1.2 deployment, Neon quota setup and deliberate provider configuration. The local flows work without those services.
+- This preview is **not merged to main or verified live**. Browser/mobile visual testing remains a release gate.
 
 - The dashboard polish and redesigned vehicle-record v2 workspace are in `main`.
 - Demo data is seeded from `lib/data/seed.mjs`: 10 vehicles, 7 customers and 20 jobs.

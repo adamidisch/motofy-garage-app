@@ -18,13 +18,14 @@ const JOB_CHOICES_EL = ["Service", "Λάδια & φίλτρο", "Φρένα", "A
 const JOB_CHOICES_EN = ["Service", "Oil & filter", "Brakes", "A/C", "Electrical", "Window", "Tyres", "Inspection"];
 
 export default function CreationModal({
-  mode, repository, t, initialScan, initialVehicleId, close, onCreateVehicle, onCreateCustomer, onCreateJob, onCreateNote,
+  mode, repository, t, initialScan, initialVehicleId, initialNoteBody, close, onCreateVehicle, onCreateCustomer, onCreateJob, onCreateNote,
 }: {
   mode: CreationMode;
   repository: Repository;
   t: Copy;
   initialScan?: { plate: string | null; make: string | null; model: string | null } | null;
   initialVehicleId?: string | null;
+  initialNoteBody?: string;
   close: () => void;
   onCreateVehicle: (draft: { plate: string; make: string | null; model: string | null; mileage_km: number | null; customer_id: string | null }) => void;
   onCreateCustomer: (draft: { name: string; phone: string | null }) => void;
@@ -45,7 +46,7 @@ export default function CreationModal({
           {mode === "vehicle" && <VehicleForm repository={repository} t={t} initialScan={initialScan} onSubmit={onCreateVehicle} close={close}/>} 
           {mode === "customer" && <CustomerForm t={t} onSubmit={onCreateCustomer} close={close}/>} 
           {mode === "job" && <JobForm repository={repository} t={t} initialVehicleId={initialVehicleId} onSubmit={onCreateJob} close={close}/>} 
-          {mode === "note" && <NoteForm repository={repository} t={t} initialVehicleId={initialVehicleId} onSubmit={onCreateNote} close={close}/>} 
+          {mode === "note" && <NoteForm repository={repository} t={t} initialVehicleId={initialVehicleId} initialNoteBody={initialNoteBody} onSubmit={onCreateNote} close={close}/>}
         </div>
       </section>
     </div>
@@ -108,8 +109,8 @@ function JobForm({ repository, t, initialVehicleId, onSubmit, close }: { reposit
   </form>;
 }
 
-function NoteForm({ repository, t, initialVehicleId, onSubmit, close }: { repository: Repository; t: Copy; initialVehicleId?: string | null; onSubmit: (draft: { vehicle_id: string; body: string }) => void; close: () => void }) {
-  const [draft, setDraft] = useState<NoteDraft>({ vehicle_id: initialVehicleId ?? repository.listVehicles()[0]?.id ?? "", body: "" });
+function NoteForm({ repository, t, initialVehicleId, initialNoteBody, onSubmit, close }: { repository: Repository; t: Copy; initialVehicleId?: string | null; initialNoteBody?: string; onSubmit: (draft: { vehicle_id: string; body: string }) => void; close: () => void }) {
+  const [draft, setDraft] = useState<NoteDraft>({ vehicle_id: initialVehicleId ?? repository.listVehicles()[0]?.id ?? "", body: initialNoteBody ?? "" });
   const vehicles = useMemo(() => repository.listVehicles(), [repository]);
   return <form className={styles.flowForm} onSubmit={(event) => { event.preventDefault(); if (draft.vehicle_id && draft.body.trim()) onSubmit({ vehicle_id: draft.vehicle_id, body: draft.body }); }}>
     <label className={styles.field}>{t.vehicle}<select value={draft.vehicle_id} onChange={(event) => setDraft({ ...draft, vehicle_id: event.target.value })}>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{[vehicle.make, vehicle.model, vehicle.plate].filter(Boolean).join(" · ")}</option>)}</select></label>

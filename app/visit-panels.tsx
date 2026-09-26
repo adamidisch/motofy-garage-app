@@ -12,7 +12,7 @@ import type { Job, Vehicle } from "../lib/data/schema.d.mts";
 
 type Copy = Record<string, string>;
 
-export function ActiveVisit({ job, workflow, lang, onJobUpdate, refreshWorkflow, openCheckout, openMe }: { job: Job; workflow: JobWorkflow; lang: "el" | "en"; onJobUpdate: (id: string, status: string) => void; refreshWorkflow: () => void; openCheckout: () => void; openMe: () => void }) {
+export function ActiveVisit({ job, workflow, lang, onJobUpdate, refreshWorkflow, openCheckout, openMe }: { job: Job; workflow: JobWorkflow; lang: "el" | "en"; onJobUpdate: (id: string, status: Job["status"]) => void; refreshWorkflow: () => void; openCheckout: () => void; openMe: () => void }) {
   const greek = lang === "el";
   const items = job.title.split(" · ").filter(Boolean);
   return <div className={styles.workflowBody}>
@@ -79,8 +79,8 @@ export function Overview({ t, lang, vehicle, customer, currentJob, lastActivity,
   </>;
 }
 
-export function Jobs({ t, lang, jobs, empty, onJobUpdate, openCreation }: { t: Copy; lang: "el" | "en"; jobs: VehicleRecordModel["jobs"]; empty: VehicleRecordModel["empty"]; onJobUpdate: (jobId: string, status: string) => void; openCreation: (mode: string) => void }) {
-  function nextStatus(s: string) { return s === "scheduled" ? "in_progress" : s === "in_progress" ? "done" : "scheduled"; }
+export function Jobs({ t, lang, jobs, empty, onJobUpdate, openCreation }: { t: Copy; lang: "el" | "en"; jobs: VehicleRecordModel["jobs"]; empty: VehicleRecordModel["empty"]; onJobUpdate: (jobId: string, status: Job["status"]) => void; openCreation: (mode: string) => void }) {
+  function nextStatus(s: Job["status"]): Job["status"] { return s === "scheduled" ? "in_progress" : s === "in_progress" ? "done" : "scheduled"; }
   function nextLabel(s: string) { return s === "scheduled" ? t.markInProgress : s === "in_progress" ? t.markDone : t.reopen; }
   if (empty.jobs) return <div className={styles.emptyActions}><EmptyPanel icon={<Wrench size={20}/>} title={t.noJobs} hint={t.noJobsHint}/><button onClick={() => openCreation("job")}><Wrench size={14}/>{t.newJob}</button></div>;
   return <><section className={styles.basicBlock}><p>{t.progress}</p>{jobs.open.map((job) => <article className={styles.basicJob} key={job.id}><span/><div><strong>{job.title}</strong><small>{statusLabel(job.status, t)}{job.scheduled_for ? ` · ${formatDateTime(job.scheduled_for, lang)}` : ""}</small></div><button onClick={() => onJobUpdate(job.id, nextStatus(job.status))}>{nextLabel(job.status)}</button></article>)}</section><section className={styles.basicBlock}><p>{t.history}</p>{jobs.history.length ? jobs.history.map((job) => <article className={styles.historyRow} key={job.id}><Check size={13}/><div><strong>{job.title}</strong><small>{formatDate(job.completed_at ?? job.created_at, lang)}{job.mileage_km !== null ? ` · ${formatMileage(job.mileage_km, lang)}` : ""}</small></div></article>) : <EmptyPanel icon={<Clock3 size={20}/>} title={t.noHistory}/>}</section></>;
