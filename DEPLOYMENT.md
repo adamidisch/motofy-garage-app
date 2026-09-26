@@ -6,7 +6,8 @@ This file is the operational source of truth for where Motofy code lives, what i
 
 | Item | Canonical source |
 | --- | --- |
-| Source code | GitHub `adamidisch/motofy-garage-app` |\n| Current app version | `v2.3.1` · Unified |
+| Source code | GitHub `adamidisch/motofy-garage-app` |
+| Current app version | `v2.3.1` · Unified |
 | Stable development code | `main` branch |
 | Development live site | https://motofy-garage-revamp.johnstaf.chatgpt.site/ |
 | Development hosting | OpenAI Sites — temporary |
