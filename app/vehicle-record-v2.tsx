@@ -195,7 +195,7 @@ export default function VehicleRecordV2({
   lang: "el" | "en";
   close: () => void;
   openVehicle: (vehicleId: string) => void;
-  onJobUpdate: (jobId: string, status: string) => void;
+  onJobUpdate: (jobId: string, status: Job["status"]) => void;
   openCreation: (mode: CreationMode, scan?: any, vehicleId?: string | null, photo?: string | null) => void;
   vehiclePhoto: string | null;
   customerPhoto: string | null;
