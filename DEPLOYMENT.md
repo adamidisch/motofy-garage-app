@@ -43,11 +43,13 @@ For every functional release:
 
 Do not call a change "live" merely because it was merged to GitHub.
 
-## Current repository snapshot — 2026-09-26
+## Repository snapshot — 2026-09-26
 
-### GitHub `main`
+### GitHub baseline
 
-Current `main` head: `e517b0967d369c12c6f0ef62f9e63bdf87d6af9c` — **Connect Motofy to Platform Foundation AI Search**.
+Functional code baseline before this state-cleanup: `e517b0967d369c12c6f0ef62f9e63bdf87d6af9c` — **Connect Motofy to Platform Foundation AI Search**.
+
+For the actual current `main` SHA, read GitHub directly rather than treating the baseline SHA in this document as permanently current.
 
 The application version declared in `app/page.tsx` is `2.3.1` with release label `Unified`. Keep the package metadata aligned with the app version.
 
@@ -93,8 +95,9 @@ login can be enabled:
 The `public.garage_state` table stores the current repository snapshot while
 the relational repository migration is completed. It has RLS and only an
 authenticated garage member can read or write its row. Demo remains local and
-does not require Supabase credentials. The two migrations are tracked under
-`supabase/migrations/` and are already applied to the Garage-App project.
+does not require Supabase credentials.
+
+The live `Garage-App` Supabase project currently records **6 applied migrations**, while this repository contains **2 migration files** under `supabase/migrations/`. This is a migration-history mismatch that must be reconciled deliberately before the repository can be treated as a complete record of the live Supabase migration history. Do not infer that the two repo files represent every applied database change.
 
 
 ## v0.2.2 live scan experiment
