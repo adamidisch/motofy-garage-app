@@ -6,14 +6,14 @@ This file is the operational source of truth for where Motofy code lives, what i
 
 | Item | Canonical source |
 | --- | --- |
-| Source code | GitHub `adamidisch/motofy-garage-app` |\n| Current app version | `v2.3.0` · Supabase auth/state foundation |
+| Source code | GitHub `adamidisch/motofy-garage-app` |\n| Current app version | `v2.3.1` · Unified |
 | Stable development code | `main` branch |
 | Development live site | https://motofy-garage-revamp.johnstaf.chatgpt.site/ |
 | Development hosting | OpenAI Sites — temporary |
 | Future production hosting | User-owned Cloudflare account |
 | Database/Auth | Existing Supabase project `Garage-App`, `eu-west-1` |
 | D1/Drizzle | Reference only, never the production persistence layer |
-| Vercel | Not part of the Motofy plan |
+| Vercel | Used by the separate shared Platform Foundation AI Search service; Motofy itself is not hosted on Vercel |
 
 ## Critical rule: GitHub main is not the live site
 
@@ -42,67 +42,34 @@ For every functional release:
 
 Do not call a change "live" merely because it was merged to GitHub.
 
-## Current release status — 2026-09-04
+## Current repository snapshot — 2026-09-26
 
-### GitHub main
+### GitHub `main`
 
-Phase 1 Gemini scan correctness fix is merged.
+Current `main` head: `e517b0967d369c12c6f0ef62f9e63bdf87d6af9c` — **Connect Motofy to Platform Foundation AI Search**.
 
-Validated behavior:
-- real test image: `PYZ 824`
-- make: `Land Rover`
-- model: `Range Rover`
-- confidence: `high`
-- direct Gemini probe: PASS
-- parser target: `steps[] -> model_output -> content[] -> text`
-- backend timeout: 30s
-- frontend timeout: 35s
-- diagnostic probe timeout: 60s
-- Gemini thinking level: low (latency patch)
-- offline unit tests: 43/43 PASS
+The application version declared in `app/page.tsx` is `2.3.1` with release label `Unified`. Keep the package metadata aligned with the app version.
 
-Phase 1 code merge:
-`5a0dbdd7f9f77d62cb3adfd7511b817dc20435d6`
+Current implementation confirmed in the source:
 
-Architecture docs merge:
-`52cbd4cf5ed87e05d03a7905cdef17d37a0af83c`
+- Supabase Auth and Worker-mediated `garage_state` snapshot sync are present. The UI data repository still uses browser storage; migration to normalized relational Supabase reads and writes is not complete.
+- The vehicle-record v2 workspace is the active vehicle record.
+- The AI Name Normalizer is wired through `POST /api/name`.
+- Platform Foundation AI Search is called through `worker/ai-search.ts`, which signs the server-side request. The shared Platform Foundation service currently uses Vercel; Motofy itself does not.
+- The demo fixture contains 10 vehicles, 7 customers and 20 jobs.
+- D1/Drizzle files and the D1 hosting binding are legacy/reference scaffolding, not Motofy's active persistence layer.
 
 ### Development live site
 
-URL:
-https://motofy-garage-revamp.johnstaf.chatgpt.site/
+URL: https://motofy-garage-revamp.johnstaf.chatgpt.site/
 
-Status:
-**Deployment freshness not yet confirmed against the Phase 1 `main` commits.**
+The deployment SHA and freshness against current `main` have not been verified in this snapshot. Do not infer live status from the GitHub commit.
 
-The live scan currently showing the old failure should be treated first as a deployment-version mismatch until the site is republished from current `main` and retested.
+## Current release checks
 
-## Next release gate
+For code changes, use the relevant checks in this order: React Doctor → Playwright → Knip → Lighthouse CI. Add Serwist only when PWA work is actually in scope. Prefer focused checks for focused changes; documentation and package-metadata-only updates do not need a full site build.
 
-Before Phase 2 starts:
-
-- deploy current `main` to the development site
-- smoke-test the same `pyz824.png` through the real UI
-- confirm the UI returns `PYZ 824 / Land Rover / Range Rover`
-
-Only after that gate passes should Phase 2 begin.
-
-## Phase 2
-
-Phase 2 is Supabase foundation:
-
-1. Supabase client/config
-2. garages
-3. garage_members
-4. customers
-5. vehicles
-6. jobs
-7. scan_events
-8. Auth
-9. RLS
-10. replace hardcoded demo data incrementally
-
-Do not start D1 persistence and do not migrate to Vercel.
+Before calling a release LIVE, verify the deployed commit and smoke-test the live URL.
 
 ## Supabase auth and state sync
 

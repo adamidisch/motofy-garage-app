@@ -21,7 +21,7 @@ Motofy is a mobile-first workspace for a car garage. The interface is Greek and 
 
 - The scan flow is camera-first: photo → identify plate and vehicle → mechanic confirms → open/create the vehicle record.
 - Never substitute a hard-coded vehicle result. If recognition is uncertain or unavailable, show a clear retry/confirmation state.
-- Customer and vehicle details should be kept in Motofy's own database. The present page still contains demo arrays; connect those screens to **Supabase** before calling the data persistent. Do not wire them to D1 — see ADR-002.
+- The current UI repository uses browser storage and syncs a garage-scoped snapshot through the Worker to Supabase `garage_state` for authenticated accounts. The normalized relational Supabase repository migration is still incomplete. Do not describe this snapshot sync as full relational persistence. Do not wire application persistence to D1 — see ADR-002.
 - API keys must be server-side secrets only. Never commit a Gemini key, `.env`, or any customer photos.
 - Menus, popovers and sheets must close when tapping outside and on Escape.
 - Keep controls large enough for mobile and do not use native file-input UI as the visible primary control.
@@ -60,18 +60,11 @@ exit condition. **Open** items are not yet decided — ask before assuming.
 | --- | --- |
 | Development hosting | OpenAI Sites (`.openai/hosting.json`) — **Temporary** |
 | Production hosting | Our own Cloudflare account — **Decided**, not yet done |
-| Vercel | **Decided: not part of the plan.** Do not propose or prepare a Vercel migration. |
+| Vercel | Motofy itself is not hosted on Vercel. The separate shared Platform Foundation AI Search service currently uses Vercel. Do not migrate Motofy to Vercel without a new decision. |
 
-Vercel Hobby permits personal, non-commercial use only, and its terms treat any
-deployment that earns money for anyone who built it as commercial. Motofy is
-intended for real garages, so the free tier was never viable and Pro is $20 per
-seat. Cloudflare Free allows commercial use, and the app already runs on the
-Cloudflare runtime, so moving there is strictly less work.
+Motofy uses the OpenAI Sites development host today. The shared Platform Foundation AI Search service is a separate service and currently uses Vercel; this does not make Vercel Motofy's hosting platform.
 
-Note that the current deployment is on OpenAI's Sites platform, which runs on
-Cloudflare but under OpenAI's account and control plane. We do not own the
-bindings, secrets or metrics. Moving to our own Cloudflare account is therefore
-a real migration step, just a much smaller one than Vercel would have been.
+The current development deployment is on OpenAI Sites. A GitHub change does not update it automatically. Treat any move to another host as a separate, explicitly scoped migration.
 
 ### ADR-002 — Database, auth and permissions
 
@@ -197,8 +190,9 @@ working frontend code without cause.
 Decided 2026-09-05. Supersedes the phase ordering implied by ADR-002.
 
 The UI is built against `lib/data/` — a garage-scoped repository over a
-localStorage-backed dataset — **before** Supabase is wired in. Supabase remains
-the decision; only the order changed.
+localStorage-backed dataset. Supabase Auth and `garage_state` snapshot sync are
+now implemented through the Worker. Replacing the local repository with
+normalized relational Supabase reads and writes remains unfinished.
 
 The reason is that the data layer is the schema decision, not scaffolding. The
 previous demo arrays held `customer: "Μάριος Παναγή"` and `work: "Service σε 5
@@ -232,5 +226,6 @@ Supabase replaces the implementation of this interface. It must not require
 changing the interface, and if it appears to, the schema is wrong and should be
 fixed here first.
 
-Build order: data layer (done) → read-only vehicle record → creation flows →
-Supabase.
+The data layer, redesigned vehicle workspace, creation flows, Supabase Auth and
+snapshot sync are present on `main`. Do not treat the full normalized Supabase
+repository migration as complete.

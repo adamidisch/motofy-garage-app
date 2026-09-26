@@ -20,6 +20,10 @@ npm run build
 
 ## Architecture
 
+- `app/` includes the vehicle workspace and server-backed name normalizer (`POST /api/name`).
+- Supabase Auth and scoped `garage_state` snapshot sync are implemented through the Worker; the full relational Supabase repository migration is still incomplete.
+- Platform Foundation AI Search is a separate shared service called through Motofy’s signed server-side Worker adapter. The shared service currently uses Vercel; Motofy itself is hosted through OpenAI Sites.
+
 - `app/` — interface and mobile scan flow
 - `worker/index.ts` — `POST /api/scan` API
 - `db/` and `drizzle/` — legacy/reference D1 schema only; Supabase is the decided persistence layer
@@ -27,7 +31,7 @@ npm run build
 
 The scanner sends the selected image to a server-side AI integration. Configure its key only as a deployment secret; never put it in the browser bundle, Git history or a committed `.env` file.
 
-For product rules and the current scan-integration state, read [CLAUDE.md](CLAUDE.md) before making a change. For the source-of-truth, live-site and release procedure, read [DEPLOYMENT.md](DEPLOYMENT.md). A merge to GitHub `main` is not proof that the OpenAI Sites deployment has been refreshed.
+Read [AGENTS.md](AGENTS.md) for the current working rules and [CURRENT_STATE.md](CURRENT_STATE.md) for the repository snapshot. For product rules and the current scan-integration state, read [CLAUDE.md](CLAUDE.md) before making a change. For the source-of-truth, live-site and release procedure, read [DEPLOYMENT.md](DEPLOYMENT.md). A merge to GitHub `main` is not proof that the OpenAI Sites deployment has been refreshed.
 
 ## Platform Foundation AI Search
 
@@ -117,7 +121,7 @@ Use SIWC for account pages, user-specific dashboards, saved records, and write a
 - `npm run build`: build the deployable Sites artifact
 - `npm run start`: start the built Vinext application
 - `npm test`: build and verify the rendered development-preview metadata
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+- `npm run db:generate:legacy`: generate Drizzle migrations after schema changes
 
 Use build commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
 

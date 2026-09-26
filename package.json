@@ -1,6 +1,6 @@
 {
-  "name": "site-creator-vinext-starter",
-  "version": "2.3.0",
+  "name": "motofy-garage-app",
+  "version": "2.3.1",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -15,7 +15,7 @@
     "scan:probe": "node scripts/probe-gemini.mjs",
     "plate:probe": "node scripts/probe-plate-recognizer.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
+    "db:generate:legacy": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
