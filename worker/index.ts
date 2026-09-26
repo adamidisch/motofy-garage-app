@@ -7,8 +7,8 @@ import { getState, login as loginWithPIN, logout as logoutAuth, putState, type A
 import { aiSearch, type AiSearchEnv } from "./ai-search";
 
 interface Env extends AuthEnv, AiSearchEnv {
-  ASSETS: Fetcher;
-  DB: D1Database;
+  ASSETS: { fetch(request: Request): Promise<Response> };
+  DB: NonNullable<typeof import("cloudflare:workers").env.DB>;
   GEMINI_API_KEY?: string;
   PLATE_RECOGNIZER_TOKEN?: string;
   /** Set to "1" to expose upstream diagnostics on /api/scan. Never enable in production. */
