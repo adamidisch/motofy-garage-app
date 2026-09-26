@@ -15,7 +15,7 @@ export type VisitTab = "work" | "parts" | "cost" | "photos";
 type Copy = Record<string, string>;
 
 export function RecordHome({ record, t, lang, tab, setTab, openVehicle, onJobUpdate, openCreation, vehiclePhoto, customerPhoto, onVehiclePhotoChange, onCustomerPhotoChange, openVisit, activeJob }: {
-  record: VehicleRecordModel; t: Copy; lang: "el" | "en"; tab: Tab; setTab: (tab: Tab) => void; openVehicle: (id: string) => void; onJobUpdate: (id: string, status: string) => void; openCreation: (mode: string) => void; vehiclePhoto: string | null; customerPhoto: string | null; onVehiclePhotoChange: (url: string) => void; onCustomerPhotoChange: (url: string) => void; openVisit: () => void; activeJob: Job | null;
+  record: VehicleRecordModel; t: Copy; lang: "el" | "en"; tab: Tab; setTab: (tab: Tab) => void; openVehicle: (id: string) => void; onJobUpdate: (id: string, status: Job["status"]) => void; openCreation: (mode: string) => void; vehiclePhoto: string | null; customerPhoto: string | null; onVehiclePhotoChange: (url: string) => void; onCustomerPhotoChange: (url: string) => void; openVisit: () => void; activeJob: Job | null;
 }) {
   const { vehicle, display, customer, otherVehicles, jobs, notes, lastActivity, scanSuggestion, empty } = record;
   const greek = lang === "el";
@@ -59,7 +59,7 @@ export function RecordHome({ record, t, lang, tab, setTab, openVehicle, onJobUpd
 
 export function VisitScreen({ job, workflow, lang, visitTab, setVisitTab, onJobUpdate, refreshWorkflow, openCheckout, openMe, vehiclePhoto, onVehiclePhotoChange }: {
   job: Job; workflow: JobWorkflow; lang: "el" | "en"; visitTab: VisitTab; setVisitTab: (tab: VisitTab) => void;
-  onJobUpdate: (id: string, status: string) => void; refreshWorkflow: () => void; openCheckout: () => void; openMe: () => void;
+  onJobUpdate: (id: string, status: Job["status"]) => void; refreshWorkflow: () => void; openCheckout: () => void; openMe: () => void;
   vehiclePhoto: string | null; onVehiclePhotoChange: (url: string) => void;
 }) {
   const greek = lang === "el";
